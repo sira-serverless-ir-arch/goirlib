@@ -1,0 +1,32 @@
+package similarity
+
+import (
+	"github.com/sira-serverless-ir-arch/goirlib/metric"
+	"github.com/sira-serverless-ir-arch/goirlib/model"
+)
+
+func BM25(query []string, k1, b, avgDocLength, totalDocs float64, numDocsWithTerm map[string]int, field model.Field) float64 {
+	score := 0.0
+	for _, term := range query {
+		idf := metric.IdfBM25(totalDocs, float64(numDocsWithTerm[term]))
+		//fmt.Println("Term: ", term)
+		//fmt.Println("numDocsWithTerm: ", numDocsWithTerm[term])
+		//fmt.Println(idf)
+		frequency := float64(field.TF[term])
+		numerator := frequency * (k1 + 1)
+		denominator := frequency + k1*(1-b+b*(float64(field.Length)/avgDocLength))
+		score += idf * (numerator / denominator)
+	}
+
+	return score
+
+}
+
+//D é um documento.
+//Q é a consulta de pesquisa que é um conjunto de termos {q1, q2,..., qn}.
+//f(qi, D) é a frequência do termo qi no documento D (isto é, o TF).
+//|D| é o comprimento do documento D em palavras.
+//avgdl é o comprimento médio do documento na coleção de documentos.
+//k1 e b são parâmetros livres, geralmente escolhidos, no contexto da Recuperação de Informações na Web, como k1 = 1.2 e b = 0.75.
+//IDF(qi) é o IDF (Inverse Document Frequency) do termo qi. No caso do BM25, o
+//IDF é calculado como log((Total Number Of Documents - Number Of Documents with term t in it + 0.5) / (Number Of Documents with term t in it + 0.5)).
