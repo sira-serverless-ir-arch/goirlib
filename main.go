@@ -27,9 +27,12 @@ func Preprocessing(text string) []string {
 
 func main() {
 
-	invertedIndex := index.NewIndex(storage.NewMemory())
+	store := storage.NewMemory()
+	invertedIndex := index.NewIndex(store)
 
+	doci := 0
 	for _, document := range testecolection.GetTextDocuments() {
+		doci += 1
 		obs := field.StringToObject(document)
 		flatted := field.Flatten(obs)
 
@@ -53,6 +56,9 @@ func main() {
 			invertedIndex.Process(id, f)
 		}
 	}
+
+	//fmt.Println("Doci:", doci)
+	//fmt.Println(store.GetFieldLength("Title") / doci)
 
 	start := time.Now()
 	s := search.NewStandard(invertedIndex) //search.NewAsyncStandard(invertedIndex, 10)
