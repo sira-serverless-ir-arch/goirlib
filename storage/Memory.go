@@ -7,6 +7,16 @@ import (
 type Memory struct {
 	Index         map[string]map[string]*Set
 	FieldDocument map[string]map[string]model.Field
+	FieldLength   map[string]int
+	FieldSize     map[string]int
+}
+
+func (m *Memory) GetFieldLength(fieldName string) int {
+	return m.FieldLength[fieldName]
+}
+
+func (m *Memory) GetFieldSize(fieldName string) int {
+	return m.FieldSize[fieldName]
 }
 
 func (m *Memory) GetFieldDocumentTest(documentId string) map[string]model.Field {
@@ -21,6 +31,8 @@ func NewMemory() Storage {
 	return &Memory{
 		Index:         make(map[string]map[string]*Set),
 		FieldDocument: make(map[string]map[string]model.Field),
+		FieldLength:   make(map[string]int),
+		FieldSize:     make(map[string]int),
 	}
 }
 
@@ -50,6 +62,9 @@ func (m *Memory) GetFields(documentId []string, fieldName string) map[string]mod
 
 func (m *Memory) SaveOrUpdate(documentId string, field model.Field) {
 	m.createFieldDocument(documentId, field)
+
+	m.FieldSize[field.Name] += 1
+	m.FieldLength[field.Name] += field.Length
 
 	indexField := m.Index[field.Name]
 

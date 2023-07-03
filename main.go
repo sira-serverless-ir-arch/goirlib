@@ -68,6 +68,7 @@ func main() {
 		{
 			FieldName: "Summary",
 			Terms:     Preprocessing("galaxies from Swift UV"),
+			Boost:     1.2,
 		},
 		//{
 		//	FieldName: "Summary",
@@ -82,6 +83,6 @@ func main() {
 	end := time.Since(start)
 	fmt.Println("time", end)
 
-	fmt.Println(len(results))
+	fmt.Println(results[0:5])
 
 }

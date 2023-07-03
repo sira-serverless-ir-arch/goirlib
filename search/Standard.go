@@ -25,7 +25,7 @@ func (s *Standard) Search(query []model.Query) []model.DocumentScore {
 	wg.Add(len(query))
 
 	for _, q := range query {
-		go func(terms []string, fieldName string) {
+		go func(terms []string, fieldName string, boost float64) {
 			defer wg.Done()
 			r := s.Index.Search(terms, fieldName)
 			documentsScores := make([]model.DocumentScore, len(r.FieldDocuments))
@@ -33,12 +33,12 @@ func (s *Standard) Search(query []model.Query) []model.DocumentScore {
 			for id, field := range r.FieldDocuments {
 				documentsScores[i] = model.DocumentScore{
 					Id:    id,
-					Score: similarity.BM25(terms, 1.2, 0.75, r.AvgDocLength, r.TotalDocuments, r.NumFieldsWithTerm, field),
+					Score: similarity.BM25(terms, 1.2, 0.75, boost, r.AvgDocLength, r.TotalDocuments, r.NumFieldsWithTerm, field),
 				}
 				i += 1
 			}
 			scoresCh <- documentsScores
-		}(q.Terms, q.FieldName)
+		}(q.Terms, q.FieldName, q.Boost)
 	}
 
 	go func() {

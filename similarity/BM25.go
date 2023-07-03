@@ -5,21 +5,20 @@ import (
 	"github.com/sira-serverless-ir-arch/goirlib/model"
 )
 
-func BM25(query []string, k1, b, avgDocLength, totalDocs float64, numDocsWithTerm map[string]int, field model.Field) float64 {
+func BM25(query []string, k1, b, boost, avgDocLength, totalDocs float64, numDocsWithTerm map[string]int, field model.Field) float64 {
 	score := 0.0
+	if boost == 0 {
+		boost = 1
+	}
 	for _, term := range query {
 		idf := metric.IdfBM25(totalDocs, float64(numDocsWithTerm[term]))
-		//fmt.Println("Term: ", term)
-		//fmt.Println("numDocsWithTerm: ", numDocsWithTerm[term])
-		//fmt.Println(idf)
 		frequency := float64(field.TF[term])
 		numerator := frequency * (k1 + 1)
 		denominator := frequency + k1*(1-b+b*(float64(field.Length)/avgDocLength))
-		score += idf * (numerator / denominator)
+		score += boost * idf * (numerator / denominator)
 	}
 
 	return score
-
 }
 
 //D é um documento.

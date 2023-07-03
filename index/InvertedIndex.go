@@ -36,8 +36,9 @@ func (i *InvertedIndex) Search(terms []string, fieldName string) model.SearchRes
 
 	maxRoutines := runtime.NumCPU() * 2
 
-	sumDl := 0.0
-	count := 0.0
+	fieldLength := float64(i.Storage.GetFieldLength(fieldName))
+	fieldSize := float64(i.Storage.GetFieldSize(fieldName))
+
 	result := model.SearchResult{
 		NumFieldsWithTerm: make(map[string]int),
 	}
@@ -78,7 +79,6 @@ func (i *InvertedIndex) Search(terms []string, fieldName string) model.SearchRes
 		batchIndex := ixx % numBatches
 		batches[batchIndex] = append(batches[batchIndex], id)
 		ixx++
-		count++
 	}
 
 	fieldCh := make(chan map[string]model.Field, len(terms))
@@ -109,97 +109,15 @@ func (i *InvertedIndex) Search(terms []string, fieldName string) model.SearchRes
 	for fieldDocument := range fieldCh {
 		for documentId, field := range fieldDocument {
 			fieldDocuments[documentId] = field
-			sumDl += float64(field.Length)
 		}
 	}
 
-	result.TotalDocuments = count
 	result.FieldDocuments = fieldDocuments
-	result.AvgDocLength = sumDl / count
+	result.TotalDocuments = fieldSize
+	result.AvgDocLength = fieldLength / fieldSize
 
 	return result
 }
-
-//func (i *InvertedIndex) Search(terms []string, fieldName string) model.SearchResult {
-//
-//	sumDl := 0.0
-//	count := 0.0
-//	result := model.SearchResult{
-//		NumFieldsWithTerm: make(map[string]int),
-//	}
-//
-//	documentIdCh := make(chan string, len(terms))
-//
-//	var wg1 sync.WaitGroup
-//	wg1.Add(len(terms))
-//	for _, term := range terms {
-//
-//		go func(term, fieldName string) {
-//			defer wg1.Done()
-//			if documents, ok := i.Storage.GetDocuments(fieldName, term); ok {
-//				for id := range documents.GetData() {
-//					documentIdCh <- id
-//				}
-//			}
-//		}(term, fieldName)
-//
-//	}
-//
-//	go func() {
-//		wg1.Wait()
-//		close(documentIdCh)
-//	}()
-//
-//	numBatches := 30
-//	batches := make([][]string, numBatches)
-//	hasDocument := make(map[string]bool)
-//	ixx := 0
-//	for id := range documentIdCh {
-//		if _, ok := hasDocument[id]; ok {
-//			continue
-//		}
-//		hasDocument[id] = true
-//		batchIndex := ixx % numBatches
-//		batches[batchIndex] = append(batches[batchIndex], id)
-//		ixx++
-//		count++
-//	}
-//
-//	var wg2 sync.WaitGroup
-//	wg2.Add(len(batches))
-//	fieldCh := make(chan map[string]model.Field, len(terms))
-//	for _, documentsId := range batches {
-//		go func(documentsId []string, fieldName string) {
-//			defer wg2.Done()
-//			fields := i.Storage.GetFields(documentsId, fieldName)
-//			for documentId, field := range fields {
-//				fieldCh <- map[string]model.Field{
-//					documentId: field,
-//				}
-//			}
-//
-//		}(documentsId, fieldName)
-//	}
-//
-//	go func() {
-//		wg2.Wait()
-//		close(fieldCh)
-//	}()
-//
-//	fieldDocuments := make(map[string]model.Field)
-//	for fieldDocument := range fieldCh {
-//		for documentId, field := range fieldDocument {
-//			fieldDocuments[documentId] = field
-//			sumDl += float64(field.Length)
-//		}
-//	}
-//
-//	result.TotalDocuments = count
-//	result.FieldDocuments = fieldDocuments
-//	result.AvgDocLength = sumDl / count
-//
-//	return result
-//}
 
 func (i *InvertedIndex) Process(documentId string, field model.Field) {
 	i.Storage.SaveOrUpdate(documentId, field)
