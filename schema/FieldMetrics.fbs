@@ -1,6 +1,6 @@
 namespace storage.buffers;
 
-table FieldMetrix {
+table FieldMetrics {
   name:string;
   size:int32;
   length:int32;

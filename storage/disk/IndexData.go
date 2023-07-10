@@ -2,9 +2,11 @@ package disk
 
 import (
 	flatbuffers "github.com/google/flatbuffers/go"
+	"github.com/sira-serverless-ir-arch/goirlib/file"
 	"github.com/sira-serverless-ir-arch/goirlib/model"
 	"github.com/sira-serverless-ir-arch/goirlib/storage/buffers"
 	"log"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -40,8 +42,8 @@ func SaveIndexOnDisk(rootFolder string, indexCh chan IndexTransferData) {
 				go func(fieldName string, terms map[string]*model.Set) {
 					defer func() { <-semaphore }()
 
-					dir := rootFolder + fieldName
-					CreteDirIfNotExist(dir)
+					path := filepath.Join(rootFolder, fieldName)
+					file.CreteDirIfNotExist(path)
 
 					tempData := make(map[string]map[string]bool)
 
@@ -50,7 +52,8 @@ func SaveIndexOnDisk(rootFolder string, indexCh chan IndexTransferData) {
 					}
 
 					buff := SerializeIndex(tempData)
-					err := SaveFileOnDisk(dir, "index", buff)
+					path = filepath.Join(path, file.IndexFile)
+					err := file.SaveFileOnDisk(path, file.CompressData(buff))
 					if err != nil {
 						log.Fatalf(err.Error())
 					}

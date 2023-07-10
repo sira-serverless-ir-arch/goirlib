@@ -1,0 +1,12 @@
+namespace storage.buffers;
+
+table TermSize {
+  key: string;
+  value: int;
+}
+
+table FieldTerm {
+  entries: [TermSize];
+}
+
+root_type FieldTerm;

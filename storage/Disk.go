@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"github.com/sira-serverless-ir-arch/goirlib/file"
 	"github.com/sira-serverless-ir-arch/goirlib/model"
 	"github.com/sira-serverless-ir-arch/goirlib/storage/disk"
 )
@@ -30,7 +31,7 @@ func NewDisk(rootFolder string) Storage {
 		NumberFieldTerm: make(map[string]map[string]int),
 	}
 
-	disk.CreteDirIfNotExist(rootFolder)
+	file.CreteDirIfNotExist(rootFolder)
 
 	d.LoadIndexOnHD(rootFolder)
 	d.LoadFieldSizeLengthOnHD(rootFolder)
@@ -60,6 +61,18 @@ func (d *Disk) UpdateFieldSizeLength(field model.Field) {
 		Length:    d.FieldLength[field.Name],
 		Size:      d.FieldSize[field.Name],
 	}
+}
+
+func (d *Disk) UpdateNumberFieldTerm(field model.Field) {
+	fieldTerm := d.NumberFieldTerm[field.Name]
+	if fieldTerm == nil {
+		fieldTerm = make(map[string]int)
+	}
+
+	for term := range field.TF {
+		fieldTerm[term] += 1
+	}
+	d.NumberFieldTerm[field.Name] = fieldTerm
 }
 
 func (d *Disk) UpdateIndex(documentId string, field model.Field) {
@@ -92,15 +105,7 @@ func (d *Disk) SaveOrUpdate(documentId string, field model.Field) {
 	d.UpdateIndex(documentId, field)
 
 	//numérico de campos que possui o termo
-	fieldTerm := d.NumberFieldTerm[field.Name]
-	if fieldTerm == nil {
-		fieldTerm = make(map[string]int)
-	}
 
-	for term := range field.TF {
-		fieldTerm[term] += 1
-	}
-	d.NumberFieldTerm[field.Name] = fieldTerm
 }
 
 func (d Disk) GetFieldDocumentTest(documentId string) map[string]model.Field {

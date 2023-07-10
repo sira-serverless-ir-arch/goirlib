@@ -13,7 +13,6 @@ import (
 	"github.com/sira-serverless-ir-arch/goirlib/model"
 	"github.com/sira-serverless-ir-arch/goirlib/search"
 	"github.com/sira-serverless-ir-arch/goirlib/storage"
-	"github.com/sira-serverless-ir-arch/goirlib/storage/disk"
 	"github.com/sira-serverless-ir-arch/goirlib/testecolection"
 	"github.com/sira-serverless-ir-arch/goirlib/tokenizer"
 	"net/http"
@@ -156,34 +155,6 @@ func Preprocessing(text string) []string {
 	r = filter.NewStopWords(language.GetWords(language.English)).Process(r)
 	r = filter.NewStemmer(stemmer.Snowball).Process(r)
 	return filter.NewASCII().Process(r)
-}
-
-func mainxcr() {
-
-	data := make(map[string]map[string]bool)
-	data["term1"] = map[string]bool{
-		"doc1": true,
-		"doc2": true,
-	}
-	data["term2"] = map[string]bool{
-		"doc10": true,
-		"doc4":  true,
-	}
-
-	buf := disk.SerializeIndex(data)
-
-	// Salva o FlatBuffer em um arquivo.
-	err := disk.SaveFileOnDisk("data/", "index", buf)
-	if err != nil {
-		panic(nil)
-	}
-
-	buf, _ = disk.ReadFileOnDisk("data/", "index")
-
-	data1 := disk.DeserializeIndex(buf)
-
-	fmt.Println(data1)
-
 }
 
 func main() {
