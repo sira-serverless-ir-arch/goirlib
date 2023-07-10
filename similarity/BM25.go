@@ -16,6 +16,20 @@ func BM25(query []string, k1, b, boost, avgDocLength, totalDocs float64, numDocs
 		numerator := frequency * (k1 + 1)
 		denominator := frequency + k1*(1-b+b*(float64(field.Length)/avgDocLength))
 		score += boost * idf * (numerator / denominator)
+
+		//if doc_id == "485" {
+		//	//fmt.Println("*******************************")
+		//	//fmt.Println("doc_id", doc_id)
+		//	fmt.Println("term", term)
+		//	//fmt.Println("totalDocs", totalDocs)
+		//	//fmt.Println("numDocsWithTerm", numDocsWithTerm[term])
+		//	//fmt.Println("idf", idf)
+		//	//fmt.Println("frequency", field.TF[term])
+		//	fmt.Println("field.Length", field.Length)
+		//	//fmt.Println("avgDocLength", avgDocLength)
+		//	fmt.Println("bm25", idf*(numerator/denominator))
+		//}
+
 	}
 
 	return score

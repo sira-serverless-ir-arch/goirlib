@@ -30,11 +30,12 @@ func (s *Standard) Search(query []model.Query) []model.DocumentScore {
 			r := s.Index.Search(terms, fieldName)
 			documentsScores := make([]model.DocumentScore, len(r.FieldDocuments))
 			i := 0
-			for id, field := range r.FieldDocuments {
+			for documentId, field := range r.FieldDocuments {
 				documentsScores[i] = model.DocumentScore{
-					Id:    id,
+					Id:    documentId,
 					Score: similarity.BM25(terms, 1.2, 0.75, boost, r.AvgDocLength, r.TotalDocuments, r.NumFieldsWithTerm, field),
 				}
+
 				i += 1
 			}
 			scoresCh <- documentsScores

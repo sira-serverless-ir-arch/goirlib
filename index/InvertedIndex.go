@@ -8,9 +8,9 @@ import (
 )
 
 type Index interface {
-	Process(documentId string, field model.Field)
+	IndexDocument(documentId string, field model.Field)
 	Search(terms []string, fieldName string) model.SearchResult
-	GetIndex(fieldName string) map[string]*storage.Set
+	GetIndex(fieldName string) map[string]*model.Set
 	GetFieldDocument(documentId string) map[string]model.Field
 }
 
@@ -28,7 +28,7 @@ func (i *InvertedIndex) GetFieldDocument(documentId string) map[string]model.Fie
 	return i.Storage.GetFieldDocumentTest(documentId)
 }
 
-func (i *InvertedIndex) GetIndex(fieldName string) map[string]*storage.Set {
+func (i *InvertedIndex) GetIndex(fieldName string) map[string]*model.Set {
 	return i.Storage.GetIndex(fieldName)
 }
 
@@ -40,7 +40,7 @@ func (i *InvertedIndex) Search(terms []string, fieldName string) model.SearchRes
 	fieldSize := float64(i.Storage.GetFieldSize(fieldName))
 
 	result := model.SearchResult{
-		NumFieldsWithTerm: make(map[string]int),
+		NumFieldsWithTerm: i.Storage.GetNumberFieldTerm(fieldName, terms),
 	}
 
 	documentIdCh := make(chan string, len(terms))
@@ -67,7 +67,7 @@ func (i *InvertedIndex) Search(terms []string, fieldName string) model.SearchRes
 		close(documentIdCh)
 	}()
 
-	numBatches := 30
+	numBatches := 5
 	batches := make([][]string, numBatches)
 	hasDocument := make(map[string]bool)
 	ixx := 0
@@ -109,6 +109,7 @@ func (i *InvertedIndex) Search(terms []string, fieldName string) model.SearchRes
 	for fieldDocument := range fieldCh {
 		for documentId, field := range fieldDocument {
 			fieldDocuments[documentId] = field
+
 		}
 	}
 
@@ -119,6 +120,6 @@ func (i *InvertedIndex) Search(terms []string, fieldName string) model.SearchRes
 	return result
 }
 
-func (i *InvertedIndex) Process(documentId string, field model.Field) {
+func (i *InvertedIndex) IndexDocument(documentId string, field model.Field) {
 	i.Storage.SaveOrUpdate(documentId, field)
 }

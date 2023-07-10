@@ -56,7 +56,7 @@ func TestIndex(t *testing.T) {
 				TF:     metric.TermFrequency(r),
 			}
 			fields = append(fields, f)
-			invertedIndex.Process(id, f)
+			invertedIndex.IndexDocument(id, f)
 		}
 	}
 

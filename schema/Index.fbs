@@ -1,0 +1,16 @@
+namespace storage.buffers;
+
+table Document {
+  values:[string];
+}
+
+table Term {
+  key:string;
+  values:Document;
+}
+
+table Index {
+  entries:[Term];
+}
+
+root_type Index;

@@ -1,0 +1,8 @@
+namespace storage.buffers;
+
+table Term {
+    term: string;
+    documents: [string];
+}
+
+root_type Term;

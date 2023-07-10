@@ -5,10 +5,29 @@ import (
 )
 
 type Memory struct {
-	Index         map[string]map[string]*Set
-	FieldDocument map[string]map[string]model.Field
-	FieldLength   map[string]int
-	FieldSize     map[string]int
+	Index           map[string]map[string]*model.Set
+	FieldDocument   map[string]map[string]model.Field
+	FieldLength     map[string]int
+	FieldSize       map[string]int
+	NumberFieldTerm map[string]map[string]int
+}
+
+func NewMemory() Storage {
+	return &Memory{
+		Index:           make(map[string]map[string]*model.Set),
+		FieldDocument:   make(map[string]map[string]model.Field),
+		FieldLength:     make(map[string]int),
+		FieldSize:       make(map[string]int),
+		NumberFieldTerm: make(map[string]map[string]int),
+	}
+}
+
+func (m *Memory) GetNumberFieldTerm(fieldName string, terms []string) map[string]int {
+	temp := make(map[string]int)
+	for _, term := range terms {
+		temp[term] = m.NumberFieldTerm[fieldName][term]
+	}
+	return temp
 }
 
 func (m *Memory) GetFieldLength(fieldName string) int {
@@ -23,26 +42,17 @@ func (m *Memory) GetFieldDocumentTest(documentId string) map[string]model.Field 
 	return m.FieldDocument[documentId]
 }
 
-func (m *Memory) GetIndex(fieldName string) map[string]*Set {
+func (m *Memory) GetIndex(fieldName string) map[string]*model.Set {
 	return m.Index[fieldName]
 }
 
-func NewMemory() Storage {
-	return &Memory{
-		Index:         make(map[string]map[string]*Set),
-		FieldDocument: make(map[string]map[string]model.Field),
-		FieldLength:   make(map[string]int),
-		FieldSize:     make(map[string]int),
-	}
-}
-
-func (m *Memory) GetDocuments(fieldName string, term string) (Set, bool) {
+func (m *Memory) GetDocuments(fieldName string, term string) (model.Set, bool) {
 	if indexField, ok := m.Index[fieldName]; ok {
 		if set, ok := indexField[term]; ok {
 			return *set, true
 		}
 	}
-	return Set{}, false
+	return model.Set{}, false
 }
 
 func (m *Memory) GetFields(documentId []string, fieldName string) map[string]model.Field {
@@ -69,20 +79,32 @@ func (m *Memory) SaveOrUpdate(documentId string, field model.Field) {
 	indexField := m.Index[field.Name]
 
 	if indexField == nil {
-		indexField = make(map[string]*Set)
+		indexField = make(map[string]*model.Set)
 		m.Index[field.Name] = indexField
 	}
 
 	for key := range field.TF {
 		set := indexField[key]
 		if set == nil {
-			set = NewSet()
+			set = model.NewSet()
 			set.Add(documentId)
 			indexField[key] = set
 		} else {
 			set.Add(documentId)
 		}
 	}
+
+	//numérico de campos que possui o termo
+	fieldTerm := m.NumberFieldTerm[field.Name]
+	if fieldTerm == nil {
+		fieldTerm = make(map[string]int)
+	}
+
+	for term := range field.TF {
+		fieldTerm[term] += 1
+	}
+	m.NumberFieldTerm[field.Name] = fieldTerm
+
 }
 
 func (m *Memory) createFieldDocument(documentId string, field model.Field) {
@@ -92,16 +114,3 @@ func (m *Memory) createFieldDocument(documentId string, field model.Field) {
 		m.FieldDocument[documentId] = map[string]model.Field{field.Name: field}
 	}
 }
-
-//func (m *Memory) createFieldDocument(documentId string, field model.Field) {
-//	fieldIndex := m.FieldDocument[documentId]
-//	if fieldIndex == nil {
-//		m.FieldDocument[documentId] = map[string]model.Field{
-//			field.Name: field,
-//		}
-//	} else {
-//		fieldIndex[field.Name] = field
-//		m.FieldDocument[documentId] = fieldIndex
-//	}
-//
-//}
