@@ -159,7 +159,7 @@ func Preprocessing(text string) []string {
 
 func main() {
 
-	store := storage.NewDisk("data/")
+	store := storage.NewDisk("data/", 1000)
 	invertedIndex := index.NewIndex(store)
 
 	doci := 0

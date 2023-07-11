@@ -9,8 +9,12 @@ import (
 )
 
 const (
-	MetricsFile = "metrics"
-	IndexFile   = "index"
+	NumberFieldTerm  = "nfterm"
+	MetricsFile      = "metrics"
+	IndexFile        = "index"
+	Documents        = "docs"
+	DocumentsMetrics = "metrics"
+	DocumentsRaw     = "raw"
 )
 
 func CompressData(buf []byte) []byte {
@@ -80,7 +84,7 @@ func ListDirectories(path string) []string {
 	}
 
 	for _, file := range files {
-		if file.IsDir() {
+		if file.IsDir() && file.Name() != Documents {
 			directories = append(directories, file.Name())
 		}
 	}

@@ -16,19 +16,22 @@ type IndexTransferData struct {
 	IndexField map[string]*model.Set
 }
 
-var (
-	m = sync.Mutex{}
-)
+type BufferIndex struct {
+	sync.Mutex
+	buffer map[string]map[string]*model.Set
+}
 
 func SaveIndexOnDisk(rootFolder string, indexCh chan IndexTransferData) {
 
-	bufferData := make(map[string]map[string]*model.Set)
+	bufferData := BufferIndex{
+		buffer: make(map[string]map[string]*model.Set),
+	}
 
 	go func() {
 		for index := range indexCh {
-			m.Lock()
-			bufferData[index.FieldName] = index.IndexField
-			m.Unlock()
+			bufferData.Lock()
+			bufferData.buffer[index.FieldName] = index.IndexField
+			bufferData.Unlock()
 		}
 	}()
 
@@ -36,8 +39,8 @@ func SaveIndexOnDisk(rootFolder string, indexCh chan IndexTransferData) {
 	go func() {
 		for {
 			time.Sleep(5 * time.Second)
-			m.Lock()
-			for fieldName, data := range bufferData {
+			bufferData.Lock()
+			for fieldName, data := range bufferData.buffer {
 				semaphore <- struct{}{}
 				go func(fieldName string, terms map[string]*model.Set) {
 					defer func() { <-semaphore }()
@@ -58,9 +61,9 @@ func SaveIndexOnDisk(rootFolder string, indexCh chan IndexTransferData) {
 						log.Fatalf(err.Error())
 					}
 				}(fieldName, data)
-				delete(bufferData, fieldName)
+				delete(bufferData.buffer, fieldName)
 			}
-			m.Unlock()
+			bufferData.Unlock()
 		}
 	}()
 }
@@ -122,7 +125,7 @@ func DeserializeIndex(buf []byte) map[string]map[string]bool {
 	for i := 0; i < termsLen; i++ {
 		term := new(buffers.Term)
 		if !index.Entries(term, i) {
-			log.Fatalf("Failed to get Term")
+			log.Fatalf("Failed to get TermSize")
 		}
 
 		key := string(term.Key())

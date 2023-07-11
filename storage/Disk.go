@@ -1,43 +1,58 @@
 package storage
 
 import (
+	"fmt"
+	"github.com/sira-serverless-ir-arch/goirlib/cache"
 	"github.com/sira-serverless-ir-arch/goirlib/file"
 	"github.com/sira-serverless-ir-arch/goirlib/model"
 	"github.com/sira-serverless-ir-arch/goirlib/storage/disk"
 )
 
 type Disk struct {
-	indexCh         chan disk.IndexTransferData
-	fieldCh         chan disk.FieldSizeLengthTransferData
-	Index           map[string]map[string]*model.Set
-	FieldDocument   map[string]map[string]model.Field
-	FieldLength     map[string]int
-	FieldSize       map[string]int
-	NumberFieldTerm map[string]map[string]int
+	indexCh            chan disk.IndexTransferData
+	fieldCh            chan disk.FieldSizeLengthTransferData
+	numberFieldTermCh  chan disk.NumberFieldTermTransferData
+	documentFieldCh    chan disk.DocumentFieldTransferData
+	rootFolder         string
+	Index              map[string]map[string]*model.Set
+	FieldDocument      map[string]map[string]model.Field
+	FieldLength        map[string]int
+	FieldSize          map[string]int
+	NumberFieldTerm    map[string]map[string]int
+	FieldDocumentCache *cache.LRUCache[map[string]model.Field]
 }
 
-func NewDisk(rootFolder string) Storage {
+func NewDisk(rootFolder string, cacheSize int) Storage {
 
 	indexCh := make(chan disk.IndexTransferData, 100)
 	fieldCh := make(chan disk.FieldSizeLengthTransferData)
+	numberFieldTermCh := make(chan disk.NumberFieldTermTransferData)
+	documentFieldCh := make(chan disk.DocumentFieldTransferData)
 
 	d := &Disk{
-		indexCh:         indexCh,
-		fieldCh:         fieldCh,
-		Index:           make(map[string]map[string]*model.Set),
-		FieldDocument:   make(map[string]map[string]model.Field),
-		FieldLength:     make(map[string]int),
-		FieldSize:       make(map[string]int),
-		NumberFieldTerm: make(map[string]map[string]int),
+		indexCh:            indexCh,
+		fieldCh:            fieldCh,
+		numberFieldTermCh:  numberFieldTermCh,
+		documentFieldCh:    documentFieldCh,
+		rootFolder:         rootFolder,
+		Index:              make(map[string]map[string]*model.Set),
+		FieldDocument:      make(map[string]map[string]model.Field),
+		FieldLength:        make(map[string]int),
+		FieldSize:          make(map[string]int),
+		NumberFieldTerm:    make(map[string]map[string]int),
+		FieldDocumentCache: cache.NewLRUCache[map[string]model.Field](cacheSize),
 	}
 
 	file.CreteDirIfNotExist(rootFolder)
 
 	d.LoadIndexOnHD(rootFolder)
 	d.LoadFieldSizeLengthOnHD(rootFolder)
+	d.LoadNumberFieldTermOnHD(rootFolder)
 
 	go disk.SaveFieldSizeLengthOnDisc(rootFolder, fieldCh)
 	go disk.SaveIndexOnDisk(rootFolder, indexCh)
+	go disk.SaveNumberFieldTermOnDisk(rootFolder, numberFieldTermCh)
+	go disk.SaveDocumentFieldOnDisk(rootFolder, documentFieldCh)
 
 	return d
 }
@@ -48,8 +63,29 @@ func (d Disk) GetDocuments(fieldName string, term string) (model.Set, bool) {
 }
 
 func (d *Disk) GetFields(documentId []string, fieldName string) map[string]model.Field {
-	//TODO implement me
-	panic("implement me")
+
+	fields := make(map[string]model.Field)
+
+	for _, id := range documentId {
+		if fieldDocumentPtr, ok := d.FieldDocumentCache.Get(id); ok {
+			fmt.Println("Caiu aqui xxx?")
+			fieldDocument := *fieldDocumentPtr
+			if field, ok := fieldDocument[fieldName]; ok {
+				fields[id] = field
+			}
+		} else {
+			fmt.Println("Caiu aqui?")
+			if fieldDocument, ok := d.LoadFieldDocumentOnHD(d.rootFolder, id); ok {
+				d.FieldDocumentCache.Put(id, fieldDocument)
+				if field, ok := fieldDocument[fieldName]; ok {
+					fields[id] = field
+				}
+			}
+		}
+	}
+
+	return fields
+
 }
 
 func (d *Disk) UpdateFieldSizeLength(field model.Field) {
@@ -72,7 +108,26 @@ func (d *Disk) UpdateNumberFieldTerm(field model.Field) {
 	for term := range field.TF {
 		fieldTerm[term] += 1
 	}
+
 	d.NumberFieldTerm[field.Name] = fieldTerm
+	d.numberFieldTermCh <- disk.NumberFieldTermTransferData{
+		FieldName: field.Name,
+		TermSize:  fieldTerm,
+	}
+}
+
+func (d *Disk) UpdateFieldDocument(documentId string, field model.Field) {
+	if _, ok := d.FieldDocument[documentId]; !ok {
+		d.FieldDocument[documentId] = make(map[string]model.Field)
+	}
+
+	d.FieldDocument[documentId][field.Name] = field
+	d.FieldDocumentCache.Put(documentId, d.FieldDocument[documentId])
+
+	d.documentFieldCh <- disk.DocumentFieldTransferData{
+		DocumentId: documentId,
+		Field:      d.FieldDocument[documentId],
+	}
 }
 
 func (d *Disk) UpdateIndex(documentId string, field model.Field) {
@@ -103,9 +158,8 @@ func (d *Disk) SaveOrUpdate(documentId string, field model.Field) {
 
 	d.UpdateFieldSizeLength(field)
 	d.UpdateIndex(documentId, field)
-
-	//numérico de campos que possui o termo
-
+	d.UpdateNumberFieldTerm(field)
+	d.UpdateFieldDocument(documentId, field)
 }
 
 func (d Disk) GetFieldDocumentTest(documentId string) map[string]model.Field {

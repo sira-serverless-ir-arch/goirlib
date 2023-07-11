@@ -1,0 +1,23 @@
+namespace storage.buffers;
+
+table TermFrequency {
+  key: string;
+  value: int;
+}
+
+table Field {
+  name: string;
+  length: int;
+  tf: [TermFrequency];
+}
+
+table FieldMap {
+  key: string;
+  value: Field;
+}
+
+table RootFieldEntry {
+  entries: [FieldMap];
+}
+
+root_type RootFieldEntry;
