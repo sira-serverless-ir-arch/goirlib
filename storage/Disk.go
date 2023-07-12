@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"fmt"
 	"github.com/sira-serverless-ir-arch/goirlib/cache"
 	"github.com/sira-serverless-ir-arch/goirlib/file"
 	"github.com/sira-serverless-ir-arch/goirlib/model"
@@ -57,9 +56,37 @@ func NewDisk(rootFolder string, cacheSize int) Storage {
 	return d
 }
 
-func (d Disk) GetDocuments(fieldName string, term string) (model.Set, bool) {
-	//TODO implement me
-	panic("implement me")
+func (d *Disk) GetNumberFieldTerm(fieldName string, terms []string) map[string]int {
+	temp := make(map[string]int)
+	for _, term := range terms {
+		temp[term] = d.NumberFieldTerm[fieldName][term]
+	}
+	return temp
+}
+
+func (d *Disk) GetFieldLength(fieldName string) int {
+	return d.FieldLength[fieldName]
+}
+
+func (d *Disk) GetFieldSize(fieldName string) int {
+	return d.FieldSize[fieldName]
+}
+
+func (d *Disk) GetFieldDocumentTest(documentId string) map[string]model.Field {
+	return d.FieldDocument[documentId]
+}
+
+func (d *Disk) GetIndex(fieldName string) map[string]*model.Set {
+	return d.Index[fieldName]
+}
+
+func (d *Disk) GetDocuments(fieldName string, term string) (model.Set, bool) {
+	if indexField, ok := d.Index[fieldName]; ok {
+		if set, ok := indexField[term]; ok {
+			return *set, true
+		}
+	}
+	return model.Set{}, false
 }
 
 func (d *Disk) GetFields(documentId []string, fieldName string) map[string]model.Field {
@@ -68,13 +95,11 @@ func (d *Disk) GetFields(documentId []string, fieldName string) map[string]model
 
 	for _, id := range documentId {
 		if fieldDocumentPtr, ok := d.FieldDocumentCache.Get(id); ok {
-			fmt.Println("Caiu aqui xxx?")
 			fieldDocument := *fieldDocumentPtr
 			if field, ok := fieldDocument[fieldName]; ok {
 				fields[id] = field
 			}
 		} else {
-			fmt.Println("Caiu aqui?")
 			if fieldDocument, ok := d.LoadFieldDocumentOnHD(d.rootFolder, id); ok {
 				d.FieldDocumentCache.Put(id, fieldDocument)
 				if field, ok := fieldDocument[fieldName]; ok {
@@ -160,29 +185,4 @@ func (d *Disk) SaveOrUpdate(documentId string, field model.Field) {
 	d.UpdateIndex(documentId, field)
 	d.UpdateNumberFieldTerm(field)
 	d.UpdateFieldDocument(documentId, field)
-}
-
-func (d Disk) GetFieldDocumentTest(documentId string) map[string]model.Field {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (d Disk) GetIndex(fieldName string) map[string]*model.Set {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (d Disk) GetFieldLength(fieldName string) int {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (d Disk) GetFieldSize(fieldName string) int {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (d Disk) GetNumberFieldTerm(fieldName string, terms []string) map[string]int {
-	//TODO implement me
-	panic("implement me")
 }

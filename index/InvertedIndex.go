@@ -8,10 +8,10 @@ import (
 )
 
 type Index interface {
-	IndexDocument(documentId string, field model.Field)
+	IndexDocument(documentId string, document model.NormalizedDocument)
 	Search(terms []string, fieldName string) model.SearchResult
-	GetIndex(fieldName string) map[string]*model.Set
-	GetFieldDocument(documentId string) map[string]model.Field
+	//GetIndex(fieldName string) map[string]*model.Set
+	//GetFieldDocument(documentId string) map[string]model.Field
 }
 
 type InvertedIndex struct {
@@ -120,6 +120,9 @@ func (i *InvertedIndex) Search(terms []string, fieldName string) model.SearchRes
 	return result
 }
 
-func (i *InvertedIndex) IndexDocument(documentId string, field model.Field) {
-	i.Storage.SaveOrUpdate(documentId, field)
+func (i *InvertedIndex) IndexDocument(documentId string, document model.NormalizedDocument) {
+
+	for _, field := range document.Fields {
+		i.Storage.SaveOrUpdate(documentId, field)
+	}
 }

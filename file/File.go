@@ -3,6 +3,7 @@ package file
 import (
 	"bytes"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -12,6 +13,8 @@ const (
 	NumberFieldTerm  = "nfterm"
 	MetricsFile      = "metrics"
 	IndexFile        = "index"
+	IndexFileTemp    = "index_temp"
+	IndexFileOld     = "index_old"
 	Documents        = "docs"
 	DocumentsMetrics = "metrics"
 	DocumentsRaw     = "raw"
@@ -75,6 +78,27 @@ func CreteDirIfNotExist(dirName string) {
 	}
 }
 
+func RenameFile(currentPath, newPath string) error {
+	err := os.Rename(currentPath, newPath)
+	if err != nil {
+		return fmt.Errorf("not possible to rename file: %v", err)
+	}
+	return nil
+}
+
+func Exists(path string) bool {
+	_, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return true
+}
+
+func Delete(path string) error {
+	err := os.Remove(path)
+	return err
+}
+
 func ListDirectories(path string) []string {
 	var directories []string
 
@@ -90,4 +114,32 @@ func ListDirectories(path string) []string {
 	}
 
 	return directories
+}
+
+func SecureSaveFile(currentPath, tempPath, oldPath string, buff []byte) error {
+	err := SaveFileOnDisk(tempPath, buff)
+	if err != nil {
+		return fmt.Errorf("failed to create temp file: %w", err)
+	}
+
+	if Exists(currentPath) {
+		err = RenameFile(currentPath, oldPath)
+		if err != nil {
+			return fmt.Errorf("failed to rename current file to old file: %w", err)
+		}
+	}
+
+	err = RenameFile(tempPath, currentPath)
+	if err != nil {
+		return fmt.Errorf("failed to rename temp file to current file: %w", err)
+	}
+
+	if Exists(oldPath) {
+		err = Delete(oldPath)
+		if err != nil {
+			return fmt.Errorf("failed to delete old file: %w", err)
+		}
+	}
+
+	return nil
 }

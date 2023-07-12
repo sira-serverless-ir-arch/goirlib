@@ -1,6 +1,6 @@
 package model
 
 type NormalizedDocument struct {
-	Id     string
+	//Id     string
 	Fields []Field
 }

@@ -67,25 +67,28 @@ func mainxx() {
 		}
 
 		id := document.Id
-		r := Preprocessing(id)
-		inv.IndexDocument(id, model.Field{
-			Name:   "id",
-			Length: len(r),
-			TF:     metric.TermFrequency(r),
-		})
+		pId := Preprocessing(id)
+		pTitle := Preprocessing(document.Title)
+		pText := Preprocessing(document.Text)
 
-		r = Preprocessing(document.Title)
-		inv.IndexDocument(id, model.Field{
-			Name:   "title",
-			Length: len(r),
-			TF:     metric.TermFrequency(r),
-		})
-
-		r = Preprocessing(document.Text)
-		inv.IndexDocument(id, model.Field{
-			Name:   "text",
-			Length: len(r),
-			TF:     metric.TermFrequency(r),
+		inv.IndexDocument(id, model.NormalizedDocument{
+			Fields: []model.Field{
+				{
+					Name:   "id",
+					Length: len(pId),
+					TF:     metric.TermFrequency(pId),
+				},
+				{
+					Name:   "title",
+					Length: len(pTitle),
+					TF:     metric.TermFrequency(pTitle),
+				},
+				{
+					Name:   "text",
+					Length: len(pText),
+					TF:     metric.TermFrequency(pText),
+				},
+			},
 		})
 
 		c.JSON(http.StatusCreated, gin.H{"success": 201})
@@ -174,16 +177,18 @@ func main() {
 			id = uuid.New().String()
 		}
 
-		//processa cada field idividualmente
+		var fields []model.Field
 		for k, v := range flatted {
 			r := Preprocessing(fmt.Sprintf("%s", v))
-			f := model.Field{
+			fields = append(fields, model.Field{
 				Name:   k,
 				Length: len(r),
 				TF:     metric.TermFrequency(r),
-			}
-			invertedIndex.IndexDocument(id, f)
+			})
 		}
+		invertedIndex.IndexDocument(id, model.NormalizedDocument{
+			Fields: fields,
+		})
 	}
 
 	fmt.Println("Chegou aqui?")

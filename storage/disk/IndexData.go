@@ -55,11 +55,14 @@ func SaveIndexOnDisk(rootFolder string, indexCh chan IndexTransferData) {
 					}
 
 					buff := SerializeIndex(tempData)
-					path = filepath.Join(path, file.IndexFile)
-					err := file.SaveFileOnDisk(path, file.CompressData(buff))
+					err := file.SecureSaveFile(filepath.Join(path, file.IndexFile),
+						filepath.Join(path, file.IndexFileTemp),
+						filepath.Join(path, file.IndexFileOld),
+						file.CompressData(buff))
 					if err != nil {
 						log.Fatalf(err.Error())
 					}
+
 				}(fieldName, data)
 				delete(bufferData.buffer, fieldName)
 			}

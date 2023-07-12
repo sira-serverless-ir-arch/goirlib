@@ -4,11 +4,24 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/sira-serverless-ir-arch/goirlib/field"
+	"github.com/sira-serverless-ir-arch/goirlib/filter"
+	"github.com/sira-serverless-ir-arch/goirlib/filter/stemmer"
+	"github.com/sira-serverless-ir-arch/goirlib/language"
 	"github.com/sira-serverless-ir-arch/goirlib/metric"
 	"github.com/sira-serverless-ir-arch/goirlib/model"
 	"github.com/sira-serverless-ir-arch/goirlib/storage"
+	"github.com/sira-serverless-ir-arch/goirlib/tokenizer"
 	"testing"
+	"time"
 )
+
+func Preprocessing(text string) []string {
+	r := tokenizer.NewStandard().Tokenize(text)
+	r = filter.NewLowercase().Process(r)
+	r = filter.NewStopWords(language.GetWords(language.English)).Process(r)
+	r = filter.NewStemmer(stemmer.Snowball).Process(r)
+	return filter.NewASCII().Process(r)
+}
 
 func indexDocs(store storage.Storage) {
 	documents := []string{
@@ -45,8 +58,9 @@ func indexDocs(store storage.Storage) {
 
 func TestStorage(t *testing.T) {
 
-	store := storage.NewMemory()
+	store := storage.NewDisk("data/", 2)
 	indexDocs(store)
+	time.Sleep(10 * time.Second)
 
 	indx := store.GetIndex("summary")
 
@@ -117,7 +131,7 @@ func TestStorage(t *testing.T) {
 }
 
 func TestNumberFieldsTerm(t *testing.T) {
-	store := storage.NewMemory()
+	store := storage.NewDisk("data", 2)
 	indexDocs(store)
 	r := store.GetNumberFieldTerm("Id", []string{"1"})
 
@@ -145,6 +159,9 @@ func TestNumberFieldsTerm(t *testing.T) {
 	if r["gorgonia"] != 1 {
 		t.Errorf("Expected 1")
 	}
+
+	time.Sleep(10 * time.Second)
+
 }
 
 func TestGetFieldSize(t *testing.T) {
