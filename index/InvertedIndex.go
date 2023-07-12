@@ -24,9 +24,9 @@ func NewIndex(storage storage.Storage) Index {
 	}
 }
 
-func (i *InvertedIndex) GetFieldDocument(documentId string) map[string]model.Field {
-	return i.Storage.GetFieldDocumentTest(documentId)
-}
+//func (i *InvertedIndex) GetFieldDocument(documentId string) map[string]model.Field {
+//	return i.Storage.GetFieldDocumentTest(documentId)
+//}
 
 func (i *InvertedIndex) GetIndex(fieldName string) map[string]*model.Set {
 	return i.Storage.GetIndex(fieldName)

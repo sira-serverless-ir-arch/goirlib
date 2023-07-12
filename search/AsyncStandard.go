@@ -10,13 +10,13 @@ package search
 //)
 //
 //type AsyncStandard struct {
-//	Index      index.Index
+//	index      index.index
 //	numWorkers int
 //}
 //
-//func NewAsyncStandard(index index.Index, numWorkers int) Search {
+//func NewAsyncStandard(index index.index, numWorkers int) Search {
 //	return &AsyncStandard{
-//		Index:      index,
+//		index:      index,
 //		numWorkers: numWorkers,
 //	}
 //}
@@ -33,7 +33,7 @@ package search
 //
 //func (s *AsyncStandard) Search(query []string) []model.DocumentScore {
 //
-//	r := s.Index.Search(query)
+//	r := s.index.Search(query)
 //
 //	jobs := make(chan Job, len(r.Documents))
 //	results := make(chan model.DocumentScore, len(r.Documents))

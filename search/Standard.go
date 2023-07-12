@@ -81,7 +81,7 @@ func (s *Standard) Search(query []model.Query) []model.DocumentScore {
 //
 //		go func(terms []string, fieldName string) {
 //			defer wg.Done()
-//			r := s.Index.Search(terms, fieldName)
+//			r := s.index.Search(terms, fieldName)
 //			documentsScores := make([]model.DocumentScore, len(r.FieldDocuments))
 //			i := 0
 //			for id, field := range r.FieldDocuments {

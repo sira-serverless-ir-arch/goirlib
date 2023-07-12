@@ -8,7 +8,7 @@ type Storage interface {
 	GetDocuments(fieldName string, term string) (model.Set, bool)
 	GetFields(documentId []string, fieldName string) map[string]model.Field
 	SaveOrUpdate(documentId string, field model.Field)
-	GetFieldDocumentTest(documentId string) map[string]model.Field
+	//GetFieldDocumentTest(documentId string) map[string]model.Field
 	GetIndex(fieldName string) map[string]*model.Set
 	//Soma de todos os TF para um campo e especifico
 	GetFieldLength(fieldName string) int

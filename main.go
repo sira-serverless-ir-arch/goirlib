@@ -47,10 +47,16 @@ func isNotDocumentComplete(doc Document) bool {
 
 var id = 0
 
-func mainxx() {
+func main() {
 	gin.SetMode(gin.DebugMode)
 	r := gin.New()
-	inv := index.NewIndex(storage.NewMemory())
+
+	store, err := storage.NewDiskStore("data/", 1000)
+	if err != nil {
+		panic(err)
+	}
+
+	inv := index.NewIndex(store)
 	sr := search.NewStandard(inv)
 
 	r.POST("/nir", func(c *gin.Context) {
@@ -146,7 +152,7 @@ func mainxx() {
 		}
 		c.JSON(http.StatusOK, body)
 	})
-	err := r.Run()
+	err = r.Run()
 	if err != nil {
 		panic(err)
 	}
@@ -160,9 +166,12 @@ func Preprocessing(text string) []string {
 	return filter.NewASCII().Process(r)
 }
 
-func main() {
+func mainxx() {
 
-	store := storage.NewDisk("data/", 1000)
+	store, err := storage.NewDiskStore("data/", 1000)
+	if err != nil {
+		panic(err)
+	}
 	invertedIndex := index.NewIndex(store)
 
 	doci := 0

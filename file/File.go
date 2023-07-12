@@ -7,14 +7,13 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 )
 
 const (
 	NumberFieldTerm  = "nfterm"
 	MetricsFile      = "metrics"
 	IndexFile        = "index"
-	IndexFileTemp    = "index_temp"
-	IndexFileOld     = "index_old"
 	Documents        = "docs"
 	DocumentsMetrics = "metrics"
 	DocumentsRaw     = "raw"
@@ -116,7 +115,12 @@ func ListDirectories(path string) []string {
 	return directories
 }
 
-func SecureSaveFile(currentPath, tempPath, oldPath string, buff []byte) error {
+func SecureSaveFile(path, fileName string, buff []byte) error {
+
+	currentPath := filepath.Join(path, fileName)
+	tempPath := filepath.Join(path, fileName+"_temp")
+	oldPath := filepath.Join(path, fileName+"_old")
+
 	err := SaveFileOnDisk(tempPath, buff)
 	if err != nil {
 		return fmt.Errorf("failed to create temp file: %w", err)

@@ -5,3 +5,4 @@ type Field struct {
 	Length int
 	TF     map[string]int
 }
+

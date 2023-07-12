@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/sira-serverless-ir-arch/goirlib/field"
+	"github.com/sira-serverless-ir-arch/goirlib/file"
 	"github.com/sira-serverless-ir-arch/goirlib/filter"
 	"github.com/sira-serverless-ir-arch/goirlib/filter/stemmer"
 	"github.com/sira-serverless-ir-arch/goirlib/language"
@@ -11,6 +12,8 @@ import (
 	"github.com/sira-serverless-ir-arch/goirlib/model"
 	"github.com/sira-serverless-ir-arch/goirlib/storage"
 	"github.com/sira-serverless-ir-arch/goirlib/tokenizer"
+	"log"
+	"os"
 	"testing"
 	"time"
 )
@@ -54,15 +57,36 @@ func indexDocs(store storage.Storage) {
 			store.SaveOrUpdate(id, f)
 		}
 	}
+
+	time.Sleep(7 * time.Second)
+}
+
+var store storage.Storage
+
+func getTestStore() storage.Storage {
+	if store != nil {
+		return store
+	}
+
+	if file.Exists("data/") {
+		err := os.RemoveAll("data/")
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	var err error
+	store, err = storage.NewDiskStore("data/", 20)
+	if err != nil {
+		panic(err)
+	}
+	indexDocs(store)
+	return store
 }
 
 func TestStorage(t *testing.T) {
 
-	store := storage.NewDisk("data/", 2)
-	indexDocs(store)
-	time.Sleep(10 * time.Second)
-
-	indx := store.GetIndex("summary")
+	indx := getTestStore().GetIndex("summary")
 
 	if indx["hous"] == nil {
 		t.Errorf("Expected word hous")
@@ -88,52 +112,11 @@ func TestStorage(t *testing.T) {
 		t.Errorf("Expected true for key %s", "3")
 	}
 
-	fieldx := store.GetFieldDocumentTest("1")
-
-	if fieldx["name"].Length < 4 {
-		t.Error("Expected Length 4")
-	}
-
-	if fieldx["summary"].Length < 2 {
-		t.Error("Expected Length 2")
-	}
-
-	if fieldx["summary"].TF["hous"] != 2 {
-		t.Error("Expected TF 2 for hous")
-	}
-
-	fieldx = store.GetFieldDocumentTest("2")
-
-	if fieldx["name"].Length < 2 {
-		t.Error("Expected Length 2")
-	}
-
-	if fieldx["summary"].Length < 2 {
-		t.Error("Expected Length 2")
-	}
-
-	if fieldx["summary"].TF["dragon"] != 1 {
-		t.Error("Expected TF 1 for dragon")
-	}
-
-	if fieldx["summary"].TF["hous"] != 1 {
-		t.Error("Expected TF 1 for house")
-	}
-
-	if fieldx["name"].TF["tatian"] != 1 {
-		t.Error("Expected TF 1 for tatian")
-	}
-
-	if fieldx["name"].TF["rodrigu"] != 1 {
-		t.Error("Expected TF 1 for rodrigu")
-	}
-
 }
 
 func TestNumberFieldsTerm(t *testing.T) {
-	store := storage.NewDisk("data", 2)
-	indexDocs(store)
-	r := store.GetNumberFieldTerm("Id", []string{"1"})
+
+	r := getTestStore().GetNumberFieldTerm("Id", []string{"1"})
 
 	if r["1"] != 1 {
 		t.Errorf("Expected 1")
@@ -165,10 +148,8 @@ func TestNumberFieldsTerm(t *testing.T) {
 }
 
 func TestGetFieldSize(t *testing.T) {
-	store := storage.NewMemory()
-	indexDocs(store)
 
-	r := store.GetFieldSize("Id")
+	r := getTestStore().GetFieldSize("Id")
 	if r != 3 {
 		t.Errorf("Expected 3")
 	}
@@ -176,16 +157,13 @@ func TestGetFieldSize(t *testing.T) {
 
 func TestGetDocuments(t *testing.T) {
 
-	store := storage.NewMemory()
-	indexDocs(store)
-
-	set, _ := store.GetDocuments("Id", "1")
+	set, _ := getTestStore().GetDocuments("Id", "1")
 	if !set.GetData()["1"] {
 		t.Errorf("Expected true")
 	}
 
 	term := Preprocessing("house")[0]
-	set, _ = store.GetDocuments("summary", term)
+	set, _ = getTestStore().GetDocuments("summary", term)
 
 	if !set.GetData()["1"] {
 		t.Errorf("Expected true")
@@ -216,15 +194,13 @@ func TestGetDocuments(t *testing.T) {
 }
 
 func TestGetFieldLength(t *testing.T) {
-	store := storage.NewMemory()
-	indexDocs(store)
 
-	r := store.GetFieldLength("summary")
+	r := getTestStore().GetFieldLength("summary")
 	if r != 6 {
 		t.Errorf("Expected 6")
 	}
 
-	r = store.GetFieldLength("Id")
+	r = getTestStore().GetFieldLength("Id")
 	if r != 3 {
 		t.Errorf("Expected 3")
 	}
@@ -232,10 +208,7 @@ func TestGetFieldLength(t *testing.T) {
 
 func TestGetFields(t *testing.T) {
 
-	store := storage.NewMemory()
-	indexDocs(store)
-
-	r := store.GetFields([]string{"1", "3"}, "name")
+	r := getTestStore().GetFields([]string{"1", "3"}, "name")
 	for s, m := range r {
 		fmt.Println(s, m)
 	}
