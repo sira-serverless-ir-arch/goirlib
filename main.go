@@ -166,7 +166,7 @@ func Preprocessing(text string) []string {
 	return filter.NewASCII().Process(r)
 }
 
-func mainxx() {
+func mainxcrt() {
 
 	store, err := storage.NewDiskStore("data/", 1000)
 	if err != nil {
@@ -198,9 +198,11 @@ func mainxx() {
 		invertedIndex.IndexDocument(id, model.NormalizedDocument{
 			Fields: fields,
 		})
-	}
 
-	fmt.Println("Chegou aqui?")
+		if doci%100 == 0 {
+			fmt.Println(doci)
+		}
+	}
 
 	for {
 		time.Sleep(5 * time.Second)

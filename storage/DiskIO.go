@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"fmt"
 	"github.com/sira-serverless-ir-arch/goirlib/file"
 	"github.com/sira-serverless-ir-arch/goirlib/model"
 	"log"
@@ -97,7 +98,9 @@ type FieldSizeLengthTransferData struct {
 
 type NumberFieldTermTransferData struct {
 	FieldName string
-	TermSize  map[string]int
+	Term      string
+	Size      int
+	//TermSize  map[string]int
 }
 
 type DocumentFieldTransferData struct {
@@ -127,17 +130,16 @@ func (d *DiskIO) SaveDocumentFieldOnDisk(data chan DocumentFieldTransferData) {
 		data: make(map[string]map[string]model.Field),
 	}
 
-	go func() {
-		for fieldDocument := range data {
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case fieldDocument := <-data:
 			localBuffer.Lock()
 			localBuffer.data[fieldDocument.DocumentId] = fieldDocument.Field
 			localBuffer.Unlock()
-		}
-	}()
-
-	go func() {
-		for {
-			time.Sleep(5 * time.Second)
+		case <-ticker.C:
 			localBuffer.Lock()
 			for documentId, fieldMap := range localBuffer.data {
 
@@ -153,7 +155,7 @@ func (d *DiskIO) SaveDocumentFieldOnDisk(data chan DocumentFieldTransferData) {
 			}
 			localBuffer.Unlock()
 		}
-	}()
+	}
 }
 
 func (d *DiskIO) SaveNumberFieldTermOnDisk(data chan NumberFieldTermTransferData) {
@@ -162,17 +164,18 @@ func (d *DiskIO) SaveNumberFieldTermOnDisk(data chan NumberFieldTermTransferData
 		data: make(map[string]map[string]int),
 	}
 
-	go func() {
-		for fieldTerm := range data {
-			buffer.Lock()
-			buffer.data[fieldTerm.FieldName] = fieldTerm.TermSize
-			buffer.Unlock()
-		}
-	}()
+	ticker := time.NewTicker(7 * time.Second)
+	defer ticker.Stop()
 
-	go func() {
-		for {
-			time.Sleep(5 * time.Second)
+	for {
+		select {
+		case fieldTerm := <-data:
+			buffer.Lock()
+			buffer.data[fieldTerm.FieldName] = map[string]int{
+				fieldTerm.Term: fieldTerm.Size,
+			}
+			buffer.Unlock()
+		case <-ticker.C:
 			buffer.Lock()
 			for fieldName, termSize := range buffer.data {
 
@@ -188,7 +191,8 @@ func (d *DiskIO) SaveNumberFieldTermOnDisk(data chan NumberFieldTermTransferData
 			}
 			buffer.Unlock()
 		}
-	}()
+	}
+
 }
 
 func (d *DiskIO) SaveFieldSizeLengthOnDisc(data chan FieldSizeLengthTransferData) {
@@ -198,18 +202,17 @@ func (d *DiskIO) SaveFieldSizeLengthOnDisc(data chan FieldSizeLengthTransferData
 		Length: make(map[string]int),
 	}
 
-	go func() {
-		for field := range data {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case field := <-data:
 			buffer.Lock()
 			buffer.Length[field.FieldName] = field.Length
 			buffer.Size[field.FieldName] = field.Size
 			buffer.Unlock()
-		}
-	}()
-
-	go func() {
-		for {
-			time.Sleep(5 * time.Second)
+		case <-ticker.C:
 			buffer.Lock()
 			for fieldName := range buffer.Length {
 				length := buffer.Length[fieldName]
@@ -231,62 +234,75 @@ func (d *DiskIO) SaveFieldSizeLengthOnDisc(data chan FieldSizeLengthTransferData
 			}
 			buffer.Unlock()
 		}
-	}()
+	}
+
 }
 
+// fieldName, term, documentId
 type IndexTransferData struct {
 	FieldName  string
-	IndexField map[string]*model.Set
+	Term       string
+	DocumentId string
+	//IndexField map[string]*model.Set
 }
 
 type BufferIndex struct {
 	sync.Mutex
-	buffer map[string]map[string]*model.Set
+	buffer map[string]map[string]map[string]bool
 }
 
 func (d *DiskIO) SaveIndexOnDisk(indexCh chan IndexTransferData) {
 
 	bufferData := BufferIndex{
-		buffer: make(map[string]map[string]*model.Set),
+		buffer: make(map[string]map[string]map[string]bool),
 	}
 
-	go func() {
-		for index := range indexCh {
+	ticker := time.NewTicker(13 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case index := <-indexCh:
+
 			bufferData.Lock()
-			bufferData.buffer[index.FieldName] = index.IndexField
+			indexField, ok := bufferData.buffer[index.FieldName]
+			if !ok {
+				indexField = make(map[string]map[string]bool)
+				bufferData.buffer[index.FieldName] = indexField
+			}
+
+			termSet, ok := indexField[index.Term]
+			if !ok {
+				termSet = make(map[string]bool)
+				indexField[index.Term] = termSet
+			}
+
+			termSet[index.DocumentId] = true
 			bufferData.Unlock()
-		}
-	}()
 
-	semaphore := make(chan struct{}, 5) // Limit to 5 goroutines
-	go func() {
-		for {
-			time.Sleep(5 * time.Second)
+		case <-ticker.C:
 			bufferData.Lock()
-			for fieldName, data := range bufferData.buffer {
-				semaphore <- struct{}{}
-				go func(fieldName string, terms map[string]*model.Set) {
-					defer func() { <-semaphore }()
+			for fieldName, terms := range bufferData.buffer {
 
-					path := filepath.Join(d.RootFolder, fieldName)
-					file.CreteDirIfNotExist(path)
+				buffer := SerializeIndex(terms)
 
-					tempData := make(map[string]map[string]bool)
+				fmt.Println("Gravou no arquivo:", fieldName)
+				path := filepath.Join(d.RootFolder, fieldName)
+				file.CreteDirIfNotExist(path)
 
-					for term, documents := range terms {
-						tempData[term] = documents.GetData()
-					}
-
-					buff := SerializeIndex(tempData)
-					err := file.SecureSaveFile(path, file.IndexFile, file.CompressData(buff))
-					if err != nil {
-						log.Fatalf(err.Error())
-					}
-
-				}(fieldName, data)
-				delete(bufferData.buffer, fieldName)
+				err := file.SecureSaveFile(path, file.IndexFile, file.CompressData(buffer))
+				if err != nil {
+					log.Fatalf(err.Error())
+				}
 			}
 			bufferData.Unlock()
 		}
-	}()
+	}
+
+	//wg := sync.WaitGroup{}
+	//wg.Add(1)
+	//go func() {
+	//
+	//}()
+	//wg.Wait()
 }

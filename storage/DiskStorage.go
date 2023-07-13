@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/sira-serverless-ir-arch/goirlib/cache"
 	"github.com/sira-serverless-ir-arch/goirlib/model"
+	"sync"
 	"time"
 )
 
@@ -18,6 +19,7 @@ type Disk struct {
 	numberFieldTerm    map[string]map[string]int
 	fieldDocumentCache *cache.LRUCache[map[string]model.Field]
 	diskIO             DiskIO
+	mu                 sync.RWMutex
 }
 
 func NewDiskStore(rootFolder string, cacheSize int) (Storage, error) {
@@ -61,6 +63,7 @@ func NewDiskStore(rootFolder string, cacheSize int) (Storage, error) {
 		fieldSize:          fieldSize,
 		numberFieldTerm:    numberFieldTerm,
 		fieldDocumentCache: cache.NewLRUCache[map[string]model.Field](cacheSize),
+		mu:                 sync.RWMutex{},
 	}
 
 	go diskIO.SaveFieldSizeLengthOnDisc(fieldCh)
@@ -143,13 +146,15 @@ func (d *Disk) UpdateNumberFieldTerm(field model.Field) {
 
 	for term := range field.TF {
 		fieldTerm[term] += 1
+		d.numberFieldTermCh <- NumberFieldTermTransferData{
+			FieldName: field.Name,
+			Term:      term,
+			Size:      fieldTerm[term],
+		}
 	}
 
 	d.numberFieldTerm[field.Name] = fieldTerm
-	d.numberFieldTermCh <- NumberFieldTermTransferData{
-		FieldName: field.Name,
-		TermSize:  fieldTerm,
-	}
+
 }
 
 func (d *Disk) UpdateFieldDocument(documentId string, field model.Field) {
@@ -176,6 +181,7 @@ func (d *Disk) UpdateFieldDocument(documentId string, field model.Field) {
 }
 
 func (d *Disk) UpdateIndex(documentId string, field model.Field) {
+
 	indexField := d.index[field.Name]
 	if indexField == nil {
 		indexField = make(map[string]*model.Set)
@@ -188,15 +194,21 @@ func (d *Disk) UpdateIndex(documentId string, field model.Field) {
 			set = model.NewSet()
 			set.Add(documentId)
 			indexField[term] = set
+			d.indexCh <- IndexTransferData{
+				FieldName:  field.Name,
+				Term:       term,
+				DocumentId: documentId,
+			}
 		} else {
 			set.Add(documentId)
+			d.indexCh <- IndexTransferData{
+				FieldName:  field.Name,
+				Term:       term,
+				DocumentId: documentId,
+			}
 		}
 	}
 
-	d.indexCh <- IndexTransferData{
-		FieldName:  field.Name,
-		IndexField: indexField,
-	}
 }
 
 func (d *Disk) SaveOrUpdate(documentId string, field model.Field) {
