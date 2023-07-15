@@ -71,6 +71,18 @@ func NewDiskStore(rootFolder string, cacheSize int) (Storage, error) {
 	go diskIO.SaveNumberFieldTermOnDisk(numberFieldTermCh)
 	go diskIO.SaveDocumentFieldOnDisk(documentFieldCh)
 
+	go func() {
+		//merge index fragments to index
+		for {
+			time.Sleep(15 * time.Second)
+			_, err := diskIO.LoadIndexOnHD()
+			if err != nil {
+				return
+			}
+			fmt.Println("Merge documents")
+		}
+	}()
+
 	return d, nil
 }
 
@@ -106,7 +118,6 @@ func (d *Disk) GetDocuments(fieldName string, term string) (model.Set, bool) {
 func (d *Disk) GetFields(documentId []string, fieldName string) map[string]model.Field {
 
 	fields := make(map[string]model.Field)
-
 	for _, id := range documentId {
 		if fieldDocumentPtr, ok := d.fieldDocumentCache.Get(id); ok {
 			fieldDocument := *fieldDocumentPtr
@@ -115,10 +126,10 @@ func (d *Disk) GetFields(documentId []string, fieldName string) map[string]model
 			}
 		} else {
 			if fieldDocument, ok := d.diskIO.LoadFieldDocumentOnHD(id); ok {
-				d.fieldDocumentCache.Put(id, fieldDocument)
 				if field, ok := fieldDocument[fieldName]; ok {
 					fields[id] = field
 				}
+				d.fieldDocumentCache.Put(id, fieldDocument)
 			}
 		}
 	}
@@ -158,26 +169,23 @@ func (d *Disk) UpdateNumberFieldTerm(field model.Field) {
 }
 
 func (d *Disk) UpdateFieldDocument(documentId string, field model.Field) {
-	var ok bool
-	var fieldDocument map[string]model.Field
-	var fieldDocumentPrt *map[string]model.Field
 
-	if fieldDocumentPrt, ok = d.fieldDocumentCache.Get(documentId); !ok {
-		if fieldDocument, ok = d.diskIO.LoadFieldDocumentOnHD(documentId); ok {
-			d.fieldDocumentCache.Put(documentId, fieldDocument)
-		} else {
-			fieldDocument = make(map[string]model.Field)
-			d.fieldDocumentCache.Put(documentId, fieldDocument)
-		}
+	var fieldIndex map[string]model.Field
+
+	if fieldIndexPtr, ok := d.fieldDocumentCache.Get(documentId); ok {
+		fieldIndex = *fieldIndexPtr
 	} else {
-		fieldDocument = *fieldDocumentPrt
+		fieldIndex = make(map[string]model.Field)
 	}
 
-	fieldDocument[field.Name] = field
+	fieldIndex[field.Name] = field
+	d.fieldDocumentCache.Put(documentId, fieldIndex)
+
 	d.documentFieldCh <- DocumentFieldTransferData{
 		DocumentId: documentId,
-		Field:      fieldDocument,
+		Field:      fieldIndex,
 	}
+
 }
 
 func (d *Disk) UpdateIndex(documentId string, field model.Field) {

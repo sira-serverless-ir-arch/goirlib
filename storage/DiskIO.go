@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/sira-serverless-ir-arch/goirlib/file"
 	"github.com/sira-serverless-ir-arch/goirlib/model"
 	"log"
@@ -53,6 +54,7 @@ func (d *DiskIO) LoadFieldSizeLengthOnHD() (map[string]int, map[string]int, erro
 
 func (d *DiskIO) LoadFieldDocumentOnHD(documentId string) (map[string]model.Field, bool) {
 	path := filepath.Join(d.RootFolder, file.Documents, file.DocumentsMetrics, documentId)
+	fmt.Println("path", path)
 	buf, err := file.ReadFileOnDisk(path)
 	if err != nil {
 		return nil, false
@@ -60,31 +62,85 @@ func (d *DiskIO) LoadFieldDocumentOnHD(documentId string) (map[string]model.Fiel
 	return DeserializeFieldMap(file.DecompressData(buf)), true
 }
 
-func (d *DiskIO) LoadIndexOnHD() (map[string]map[string]*model.Set, error) {
+func LoadTermDocumentsFromIndex(field string, rootFolder string) (map[string]*model.Set, error) {
+	termDocuments := make(map[string]*model.Set)
+	path := filepath.Join(rootFolder, field, file.IndexFile)
+	if !file.Exists(path) {
+		return termDocuments, nil
+	}
 
+	buf, err := file.ReadFileOnDisk(path)
+	if err != nil {
+		return nil, err
+	}
+	for term, documents := range DeserializeIndex(file.DecompressData(buf)) {
+		set := model.NewSet()
+		for documentId := range documents {
+			set.Add(documentId)
+		}
+		termDocuments[term] = set
+	}
+	return termDocuments, nil
+}
+
+func (d *DiskIO) LoadIndexOnHD() (map[string]map[string]*model.Set, error) {
 	fields := file.ListDirectories(d.RootFolder)
 	index := make(map[string]map[string]*model.Set)
 
 	for _, field := range fields {
-		path := filepath.Join(d.RootFolder, field, file.IndexFile)
-		buf, err := file.ReadFileOnDisk(path)
+		path := filepath.Join(d.RootFolder, field, file.Temp)
+		file.CreteDirIfNotExist(path)
+		files := file.ListFiles(path)
+
+		termDocuments, err := LoadTermDocumentsFromIndex(field, d.RootFolder)
 		if err != nil {
 			return nil, err
 		}
 
-		termDocuments := make(map[string]*model.Set)
-		count := 0
-		for term, documents := range DeserializeIndex(file.DecompressData(buf)) {
-			set := model.NewSet()
-			for documentId := range documents {
-				set.Add(documentId)
+		for _, fileName := range files {
+			filePath := filepath.Join(path, fileName)
+			buf, err := file.ReadFileOnDisk(filePath)
+			if err != nil {
+				return nil, err
 			}
-			termDocuments[term] = set
-			count++
+
+			for term, documents := range DeserializeIndex(file.DecompressData(buf)) {
+				set, ok := termDocuments[term]
+				if !ok {
+					set = model.NewSet()
+				}
+
+				for documentId := range documents {
+					set.Add(documentId)
+				}
+				termDocuments[term] = set
+			}
 		}
 		index[field] = termDocuments
-	}
 
+		tempTermDocuments := make(map[string]map[string]bool)
+		for term, documents := range termDocuments {
+			tempTermDocuments[term] = documents.GetData()
+		}
+
+		buffer := SerializeIndex(tempTermDocuments)
+		indexPath := filepath.Join(d.RootFolder, field)
+		file.CreteDirIfNotExist(indexPath)
+
+		err = file.SecureSaveFile(indexPath, file.IndexFile, file.CompressData(buffer))
+		if err != nil {
+			return nil, err
+		}
+
+		//Delete temp files
+		for _, fileName := range files {
+			filePath := filepath.Join(path, fileName)
+			err = file.Delete(filePath)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
 	return index, nil
 }
 
@@ -142,8 +198,7 @@ func (d *DiskIO) SaveDocumentFieldOnDisk(data chan DocumentFieldTransferData) {
 		case <-ticker.C:
 			localBuffer.Lock()
 			for documentId, fieldMap := range localBuffer.data {
-
-				path := filepath.Join(d.RootFolder, file.Documents)
+				path := filepath.Join(d.RootFolder, file.Documents, file.DocumentsMetrics)
 				file.CreteDirIfNotExist(path)
 
 				buf := SerializeFieldMap(fieldMap)
@@ -171,9 +226,15 @@ func (d *DiskIO) SaveNumberFieldTermOnDisk(data chan NumberFieldTermTransferData
 		select {
 		case fieldTerm := <-data:
 			buffer.Lock()
-			buffer.data[fieldTerm.FieldName] = map[string]int{
-				fieldTerm.Term: fieldTerm.Size,
+
+			if termSize, ok := buffer.data[fieldTerm.FieldName]; ok {
+				termSize[fieldTerm.Term] = fieldTerm.Size
+			} else {
+				buffer.data[fieldTerm.FieldName] = map[string]int{
+					fieldTerm.Term: fieldTerm.Size,
+				}
 			}
+
 			buffer.Unlock()
 		case <-ticker.C:
 			buffer.Lock()
@@ -259,7 +320,7 @@ func (d *DiskIO) SaveIndexOnDisk(indexCh chan IndexTransferData) {
 
 	ticker := time.NewTicker(13 * time.Second)
 	defer ticker.Stop()
-
+	count := 0
 	for {
 		select {
 		case index := <-indexCh:
@@ -277,24 +338,28 @@ func (d *DiskIO) SaveIndexOnDisk(indexCh chan IndexTransferData) {
 				indexField[index.Term] = termSet
 			}
 
+			count += 1
 			termSet[index.DocumentId] = true
 			bufferData.Unlock()
 
 		case <-ticker.C:
 			bufferData.Lock()
 			for fieldName, terms := range bufferData.buffer {
-
 				buffer := SerializeIndex(terms)
-
-				fmt.Println("Gravou no arquivo:", fieldName)
-				path := filepath.Join(d.RootFolder, fieldName)
+				path := filepath.Join(d.RootFolder, fieldName, file.Temp)
 				file.CreteDirIfNotExist(path)
 
-				err := file.SecureSaveFile(path, file.IndexFile, file.CompressData(buffer))
+				tempFile := uuid.New().String()
+				path = filepath.Join(path, tempFile)
+				err := file.SaveFileOnDisk(path, file.CompressData(buffer))
+				//err := file.SecureSaveFile(path, tempFile, file.CompressData(buffer))
 				if err != nil {
 					log.Fatalf(err.Error())
 				}
 			}
+			fmt.Println("Gravou", count)
+			count = 0
+			bufferData.buffer = make(map[string]map[string]map[string]bool)
 			bufferData.Unlock()
 		}
 	}

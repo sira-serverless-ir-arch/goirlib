@@ -16,6 +16,7 @@ const (
 	IndexFile        = "index"
 	Documents        = "docs"
 	DocumentsMetrics = "metrics"
+	Temp             = "temp"
 	DocumentsRaw     = "raw"
 )
 
@@ -96,6 +97,22 @@ func Exists(path string) bool {
 func Delete(path string) error {
 	err := os.Remove(path)
 	return err
+}
+
+func ListFiles(path string) []string {
+	files, err := os.ReadDir(path)
+	if err != nil {
+		log.Fatalf("Failed to read directory: %s", err)
+	}
+
+	var filenames []string
+	for _, file := range files {
+		if !file.IsDir() {
+			filenames = append(filenames, file.Name())
+		}
+	}
+
+	return filenames
 }
 
 func ListDirectories(path string) []string {

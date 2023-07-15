@@ -6,6 +6,7 @@ import (
 
 type Storage interface {
 	GetDocuments(fieldName string, term string) (model.Set, bool)
+	//Passa os Ids de documentos e retorna os fields
 	GetFields(documentId []string, fieldName string) map[string]model.Field
 	SaveOrUpdate(documentId string, field model.Field)
 	//GetFieldDocumentTest(documentId string) map[string]model.Field
