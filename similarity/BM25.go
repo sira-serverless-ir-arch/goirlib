@@ -1,9 +1,33 @@
 package similarity
 
 import (
+	"github.com/sira-serverless-ir-arch/goirlib/cache"
 	"github.com/sira-serverless-ir-arch/goirlib/metric"
 	"github.com/sira-serverless-ir-arch/goirlib/model"
 )
+
+var lru = cache.NewShardMap[float64](10)
+
+func CalcIDF(totalDocs, numDocsWithTerm float64, term, fieldName string) float64 {
+
+	iMap, ok := lru.Get(fieldName)
+
+	if ok {
+		if idfPtr, ok := iMap.Get(term); ok {
+			return *idfPtr
+		} else {
+			idf := metric.IdfBM25(totalDocs, numDocsWithTerm)
+			iMap.Put(term, idf)
+			return idf
+		}
+	} else {
+		idf := metric.IdfBM25(totalDocs, numDocsWithTerm)
+		iMap := cache.NewAsyncMap[float64]()
+		iMap.Put(term, idf)
+		return idf
+	}
+
+}
 
 func BM25(query []string, k1, b, boost, avgDocLength, totalDocs float64, numDocsWithTerm map[string]int, field model.Field) float64 {
 	score := 0.0
@@ -11,7 +35,8 @@ func BM25(query []string, k1, b, boost, avgDocLength, totalDocs float64, numDocs
 		boost = 1
 	}
 	for _, term := range query {
-		idf := metric.IdfBM25(totalDocs, float64(numDocsWithTerm[term]))
+		idf := metric.IdfBM25(totalDocs, float64(numDocsWithTerm[term])) //CalcIDF(totalDocs, float64(numDocsWithTerm[term]), term, field.Name)
+		//metric.IdfBM25(totalDocs, float64(numDocsWithTerm[term]))
 		frequency := float64(field.TF[term])
 		numerator := frequency * (k1 + 1)
 		denominator := frequency + k1*(1-b+b*(float64(field.Length)/avgDocLength))

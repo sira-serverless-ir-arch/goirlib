@@ -54,7 +54,6 @@ func (d *DiskIO) LoadFieldSizeLengthOnHD() (map[string]int, map[string]int, erro
 
 func (d *DiskIO) LoadFieldDocumentOnHD(documentId string) (map[string]model.Field, bool) {
 	path := filepath.Join(d.RootFolder, file.Documents, file.DocumentsMetrics, documentId)
-	fmt.Println("path", path)
 	buf, err := file.ReadFileOnDisk(path)
 	if err != nil {
 		return nil, false

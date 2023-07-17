@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/sira-serverless-ir-arch/goirlib/cache"
 	"github.com/sira-serverless-ir-arch/goirlib/field"
 	"github.com/sira-serverless-ir-arch/goirlib/filter"
 	"github.com/sira-serverless-ir-arch/goirlib/filter/stemmer"
@@ -47,11 +48,69 @@ func isNotDocumentComplete(doc Document) bool {
 
 var id = 0
 
+func maincc() {
+	lru := cache.NewAsyncMap[float64]()
+
+	go func() {
+		for i := 0; i < 1000; i++ {
+			lru.Put(fmt.Sprintf("teste %v", i), float64(i))
+		}
+	}()
+
+	go func() {
+		for i := 0; i < 100; i++ {
+			lru.Put(fmt.Sprintf("teste %v", i), float64(i))
+		}
+	}()
+
+	go func() {
+		for i := 0; i < 10000; i++ {
+			lru.Put(fmt.Sprintf("teste %v", i), float64(i))
+		}
+	}()
+
+	go func() {
+		for {
+			for i := 0; i < 1000; i++ {
+				lru.Get(fmt.Sprintf("teste %v", i))
+			}
+		}
+	}()
+
+	go func() {
+		for {
+			for i := 0; i < 1000; i++ {
+				lru.Get(fmt.Sprintf("teste %v", i))
+			}
+		}
+	}()
+
+	go func() {
+		for {
+			for i := 0; i < 1000; i++ {
+				lru.Get(fmt.Sprintf("teste %v", i))
+			}
+		}
+	}()
+
+	go func() {
+		for {
+			for i := 0; i < 1000; i++ {
+				lru.Get(fmt.Sprintf("teste %v", i))
+			}
+		}
+	}()
+
+	time.Sleep(20 * time.Second)
+
+	fmt.Println()
+}
+
 func main() {
 	gin.SetMode(gin.DebugMode)
 	r := gin.New()
 
-	store, err := storage.NewDiskStore("data/", 1000)
+	store, err := storage.NewDiskStore("data/", 300000)
 	if err != nil {
 		panic(err)
 	}

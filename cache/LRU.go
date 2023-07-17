@@ -1,6 +1,9 @@
 package cache
 
-import "container/list"
+import (
+	"container/list"
+	"sync"
+)
 
 type Page[T any] struct {
 	key   string
@@ -11,6 +14,7 @@ type LRUCache[T any] struct {
 	capacity int
 	cache    map[string]*list.Element
 	pages    *list.List
+	sync.RWMutex
 }
 
 func NewLRUCache[T any](capacity int) *LRUCache[T] {
@@ -22,6 +26,8 @@ func NewLRUCache[T any](capacity int) *LRUCache[T] {
 }
 
 func (l *LRUCache[T]) Get(key string) (*T, bool) {
+	l.RLock()
+	defer l.RUnlock()
 	if elem, ok := l.cache[key]; ok {
 		l.pages.MoveToFront(elem)
 		return &elem.Value.(*Page[T]).value, true
@@ -30,6 +36,8 @@ func (l *LRUCache[T]) Get(key string) (*T, bool) {
 }
 
 func (l *LRUCache[T]) Put(key string, value T) {
+	l.Lock()
+	defer l.Unlock()
 	if elem, ok := l.cache[key]; ok {
 		l.pages.MoveToFront(elem)
 		elem.Value.(*Page[T]).value = value

@@ -17,7 +17,7 @@ type Disk struct {
 	fieldLength        map[string]int
 	fieldSize          map[string]int
 	numberFieldTerm    map[string]map[string]int
-	fieldDocumentCache *cache.LRUCache[map[string]model.Field]
+	fieldDocumentCache *cache.LRUCache[map[string]model.Field] //*cache.RCU[map[string]model.Field]
 	diskIO             DiskIO
 	mu                 sync.RWMutex
 }
@@ -62,7 +62,7 @@ func NewDiskStore(rootFolder string, cacheSize int) (Storage, error) {
 		fieldLength:        fieldLength,
 		fieldSize:          fieldSize,
 		numberFieldTerm:    numberFieldTerm,
-		fieldDocumentCache: cache.NewLRUCache[map[string]model.Field](cacheSize),
+		fieldDocumentCache: cache.NewLRUCache[map[string]model.Field](cacheSize), //cache.NewCacheRCU[map[string]model.Field]()
 		mu:                 sync.RWMutex{},
 	}
 
