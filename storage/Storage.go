@@ -17,4 +17,6 @@ type Storage interface {
 	GetFieldSize(fieldName string) int
 	//Retorna quandos documentos possui um determinando atributo
 	GetNumberFieldTerm(fieldName string, terms []string) map[string]int
+	//sds
+	UpdateIndex(documentId string, field model.Field)
 }

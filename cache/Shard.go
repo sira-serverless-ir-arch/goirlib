@@ -1,6 +1,9 @@
 package cache
 
-import "hash/crc32"
+import (
+	"fmt"
+	"hash/crc32"
+)
 
 type Shard[T any] struct {
 	Fragments int
@@ -20,10 +23,10 @@ func NewShardMap[T any](fragments int) *Shard[T] {
 	return shardMap
 }
 
-func (m *Shard[T]) Put(key string, value *RCU[T]) {
-	shardId := m.getShardId(key)
-	m.Shard[shardId] = value
-}
+//func (m *Shard[T]) Put(key string, value *RCU[T]) {
+//	shardId := m.getShardId(key)
+//	m.Shard[shardId] = value
+//}
 
 func (m *Shard[T]) Get(key string) (*RCU[T], bool) {
 	shardId := m.getShardId(key)
@@ -31,7 +34,8 @@ func (m *Shard[T]) Get(key string) (*RCU[T], bool) {
 		return iMap, ok
 	}
 
-	return nil, false
+	panic(fmt.Sprintf("Shard not found for key %v", key))
+
 }
 
 func (m *Shard[T]) getShardId(key string) int {

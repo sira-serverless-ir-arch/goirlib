@@ -12,6 +12,11 @@ type Memory struct {
 	NumberFieldTerm map[string]map[string]int
 }
 
+func (m *Memory) UpdateIndex(documentId string, field model.Field) {
+	//TODO implement me
+	panic("implement me")
+}
+
 func NewMemory() Storage {
 	return &Memory{
 		Index:           make(map[string]map[string]*model.Set),

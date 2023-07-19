@@ -1,23 +1,28 @@
-package test
+package disk_storage
 
 import (
+	"github.com/sira-serverless-ir-arch/goirlib/file"
 	"github.com/sira-serverless-ir-arch/goirlib/storage"
+	"log"
 	"os"
 	"testing"
 )
 
 func TestLoadTermDocumentsFromIndex(t *testing.T) {
 
-	err := os.RemoveAll("data/")
-	if err != nil {
-		panic(err)
+	if file.Exists("data7/") {
+		err := os.RemoveAll("data7/")
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
-	store, _ := storage.NewDiskStore("data/", 10)
+	store, err := storage.NewDiskStore("data7/", 5)
 	indexDocs(documents, store)
-	//time.Sleep(50 * )
 
-	index, err := storage.LoadTermDocumentsFromIndex("summary", "data/")
+	//reload from index file on storage_disk
+	store, _ = storage.NewDiskStore("data7/", 10)
+	index, err := storage.LoadTermDocumentsFromIndex("summary", "data7/")
 	if err != nil {
 		panic(err)
 	}
@@ -47,7 +52,7 @@ func TestLoadTermDocumentsFromIndex(t *testing.T) {
 		t.Errorf("Expected true")
 	}
 
-	index, err = storage.LoadTermDocumentsFromIndex("Id", "data/")
+	index, err = storage.LoadTermDocumentsFromIndex("Id", "data7/")
 	if err != nil {
 		panic(err)
 	}
@@ -64,7 +69,7 @@ func TestLoadTermDocumentsFromIndex(t *testing.T) {
 		t.Errorf("Expected 1, got %d", index["1"].Size())
 	}
 
-	index, err = storage.LoadTermDocumentsFromIndex("name", "data/")
+	index, err = storage.LoadTermDocumentsFromIndex("name", "data7/")
 	if err != nil {
 		panic(err)
 	}
@@ -82,12 +87,17 @@ func TestLoadTermDocumentsFromIndex(t *testing.T) {
 
 func TestLoadIndexOnHD(t *testing.T) {
 
-	err := os.RemoveAll("data/")
+	if file.Exists("data8/") {
+		err := os.RemoveAll("data8/")
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	store, err := storage.NewDiskStore("data8/", 5)
 	if err != nil {
 		panic(err)
 	}
-
-	store, _ = storage.NewDiskStore("data/", 10)
 	indexDocs(documents, store)
 
 	nDocuments := []string{
@@ -95,9 +105,15 @@ func TestLoadIndexOnHD(t *testing.T) {
 		"{\"Id\":\"5\",\"name\":\"Isabella Taliba\",\"summary\":\"Iceland land of fire\"}",
 	}
 
-	store, _ = storage.NewDiskStore("data/", 10)
+	store, err = storage.NewDiskStore("data8/", 5)
+	if err != nil {
+		panic(err)
+	}
 	indexDocs(nDocuments, store)
-	index, _ := storage.LoadTermDocumentsFromIndex("name", "data/")
+
+	//reload index file from storage_disk
+	store, _ = storage.NewDiskStore("data8/", 10)
+	index, _ := storage.LoadTermDocumentsFromIndex("name", "data8/")
 
 	if index["isabella"].Size() != 2 {
 		t.Errorf("Expected 2, got %d", index["isabella"].Size())
@@ -107,7 +123,7 @@ func TestLoadIndexOnHD(t *testing.T) {
 		t.Errorf("Expected 2, got %d", index["taliba"].Size())
 	}
 
-	index, _ = storage.LoadTermDocumentsFromIndex("summary", "data/")
+	index, _ = storage.LoadTermDocumentsFromIndex("summary", "data8/")
 	if index["iceland"].Size() != 1 {
 		t.Errorf("Expected 1, got %d", index["iceland"].Size())
 	}

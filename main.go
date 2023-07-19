@@ -110,7 +110,7 @@ func main() {
 	gin.SetMode(gin.DebugMode)
 	r := gin.New()
 
-	store, err := storage.NewDiskStore("data/", 300000)
+	store, err := storage.NewDiskStore("disk_storage/", 300000)
 	if err != nil {
 		panic(err)
 	}
@@ -227,7 +227,7 @@ func Preprocessing(text string) []string {
 
 func mainxcrt() {
 
-	store, err := storage.NewDiskStore("data/", 1000)
+	store, err := storage.NewDiskStore("disk_storage/", 1000)
 	if err != nil {
 		panic(err)
 	}

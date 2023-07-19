@@ -1,4 +1,4 @@
-package test
+package disk_storage
 
 import (
 	"fmt"
@@ -60,35 +60,88 @@ func indexDocs(documents []string, store storage.Storage) {
 		}
 	}
 
-	time.Sleep(17 * time.Second)
+	time.Sleep(20 * time.Second)
 }
 
-var store storage.Storage
+func TestUpdateIndex(t *testing.T) {
 
-func getTestStore() storage.Storage {
-	if store != nil {
-		return store
-	}
-
-	if file.Exists("data/") {
-		err := os.RemoveAll("data/")
+	if file.Exists("data1/") {
+		err := os.RemoveAll("data1/")
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
 
-	var err error
-	store, err = storage.NewDiskStore("data/", 20)
+	store, err := storage.NewDiskStore("data1/", 5)
+
 	if err != nil {
 		panic(err)
 	}
-	indexDocs(documents, store)
-	return store
+	store.UpdateIndex("1", model.Field{
+		Name:   "summary",
+		Length: 3,
+		TF: map[string]int{
+			"house": 2,
+			"car":   1,
+		},
+	})
+
+	time.Sleep(30 * time.Second)
+	docs, ok := store.GetDocuments("summary", "house")
+	if !ok {
+		t.Errorf("Expected false, got true")
+	}
+
+	if !docs.GetData()["1"] {
+		t.Errorf("Expected false, got true")
+	}
+
+	store, err = storage.NewDiskStore("data1/", 5)
+	if err != nil {
+		panic(err)
+	}
+
+	store.UpdateIndex("2", model.Field{
+		Name:   "summary",
+		Length: 2,
+		TF: map[string]int{
+			"dragon": 1,
+			"car":    1,
+		},
+	})
+
+	//time.Sleep(10 * time.Second)
+	docs, ok = store.GetDocuments("summary", "car")
+	if !ok {
+		t.Errorf("Expected false, got true")
+	}
+
+	if !docs.GetData()["1"] {
+		t.Errorf("Expected true, got false")
+	}
+
+	if !docs.GetData()["2"] {
+		t.Errorf("Expected true, got false")
+	}
+
 }
 
 func TestStorage(t *testing.T) {
-	store = nil
-	indx := getTestStore().GetIndex("summary")
+
+	if file.Exists("data2/") {
+		err := os.RemoveAll("data2/")
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	store, err := storage.NewDiskStore("data2/", 5)
+	if err != nil {
+		panic(err)
+	}
+
+	indexDocs(documents, store)
+	indx := store.GetIndex("summary")
 
 	if indx["hous"] == nil {
 		t.Errorf("Expected word hous")
@@ -115,7 +168,7 @@ func TestStorage(t *testing.T) {
 	}
 
 	//Recarrega o indice
-	store, _ = storage.NewDiskStore("data/", 20)
+	store, _ = storage.NewDiskStore("data2/", 5)
 	indx = store.GetIndex("summary")
 
 	if indx["hous"] == nil {
@@ -146,8 +199,19 @@ func TestStorage(t *testing.T) {
 
 func TestNumberFieldsTerm(t *testing.T) {
 
-	store = nil
-	r := getTestStore().GetNumberFieldTerm("Id", []string{"1"})
+	if file.Exists("data3/") {
+		err := os.RemoveAll("data3/")
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	store, err := storage.NewDiskStore("data3/", 5)
+	if err != nil {
+		panic(err)
+	}
+	indexDocs(documents, store)
+	r := store.GetNumberFieldTerm("Id", []string{"1"})
 
 	if r["1"] != 1 {
 		t.Errorf("Expected 1, got %d", r["1"])
@@ -172,11 +236,8 @@ func TestNumberFieldsTerm(t *testing.T) {
 		t.Errorf("Expected 1, got %d", r["gorgonia"])
 	}
 
-	store, _ = storage.NewDiskStore("data/", 20)
-	r = store.GetNumberFieldTerm("Id", []string{"1"})
-
 	//Recarrega o storage
-	store, _ = storage.NewDiskStore("data/", 20)
+	store, _ = storage.NewDiskStore("data3/", 5)
 	r = store.GetNumberFieldTerm("Id", []string{"1"})
 
 	if r["1"] != 1 {
@@ -205,14 +266,25 @@ func TestNumberFieldsTerm(t *testing.T) {
 
 func TestGetFieldSize(t *testing.T) {
 
-	store = nil
-	r := getTestStore().GetFieldSize("Id")
+	if file.Exists("data3/") {
+		err := os.RemoveAll("data3/")
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	store, err := storage.NewDiskStore("data3/", 5)
+	if err != nil {
+		panic(err)
+	}
+	indexDocs(documents, store)
+	r := store.GetFieldSize("Id")
 	if r != 3 {
 		t.Errorf("Expected 3")
 	}
 
 	//Recarrega o indice
-	store, _ = storage.NewDiskStore("data/", 20)
+	store, _ = storage.NewDiskStore("data3/", 20)
 
 	r = store.GetFieldSize("Id")
 	if r != 3 {
@@ -221,14 +293,26 @@ func TestGetFieldSize(t *testing.T) {
 }
 
 func TestGetDocuments(t *testing.T) {
-	store = nil
-	set, _ := getTestStore().GetDocuments("Id", "1")
+	if file.Exists("data4/") {
+		err := os.RemoveAll("data4/")
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	store, err := storage.NewDiskStore("data4/", 5)
+	if err != nil {
+		panic(err)
+	}
+	indexDocs(documents, store)
+	set, _ := store.GetDocuments("Id", "1")
+
 	if !set.GetData()["1"] {
 		t.Errorf("Expected true")
 	}
 
 	term := Preprocessing("house")[0]
-	set, _ = getTestStore().GetDocuments("summary", term)
+	set, _ = store.GetDocuments("summary", term)
 
 	if !set.GetData()["1"] {
 		t.Errorf("Expected true")
@@ -257,7 +341,7 @@ func TestGetDocuments(t *testing.T) {
 	}
 
 	//Recarrega o indice
-	store, _ = storage.NewDiskStore("data/", 20)
+	store, _ = storage.NewDiskStore("data4/", 20)
 	set, _ = store.GetDocuments("Id", "1")
 
 	if !set.GetData()["1"] {
@@ -265,7 +349,7 @@ func TestGetDocuments(t *testing.T) {
 	}
 
 	term = Preprocessing("house")[0]
-	set, _ = getTestStore().GetDocuments("summary", term)
+	set, _ = store.GetDocuments("summary", term)
 
 	if !set.GetData()["1"] {
 		t.Errorf("Expected true")
@@ -296,25 +380,36 @@ func TestGetDocuments(t *testing.T) {
 }
 
 func TestGetFieldLength(t *testing.T) {
-	store = nil
-	r := getTestStore().GetFieldLength("summary")
+	if file.Exists("data5/") {
+		err := os.RemoveAll("data5/")
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	store, err := storage.NewDiskStore("data5/", 5)
+	if err != nil {
+		panic(err)
+	}
+	indexDocs(documents, store)
+	r := store.GetFieldLength("summary")
 	if r != 6 {
 		t.Errorf("Expected 6")
 	}
 
-	r = getTestStore().GetFieldLength("Id")
+	r = store.GetFieldLength("Id")
 	if r != 3 {
 		t.Errorf("Expected 3")
 	}
 
 	//recarrega da memoria
-	store, _ = storage.NewDiskStore("data/", 20)
+	store, _ = storage.NewDiskStore("data5/", 20)
 	r = store.GetFieldLength("summary")
 	if r != 6 {
 		t.Errorf("Expected 6")
 	}
 
-	r = getTestStore().GetFieldLength("Id")
+	r = store.GetFieldLength("Id")
 	if r != 3 {
 		t.Errorf("Expected 3")
 	}
@@ -322,8 +417,19 @@ func TestGetFieldLength(t *testing.T) {
 
 func TestGetFields(t *testing.T) {
 
-	store = nil
-	r := getTestStore().GetFields([]string{"1", "3"}, "name")
+	if file.Exists("data6/") {
+		err := os.RemoveAll("data6/")
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	store, err := storage.NewDiskStore("data6/", 5)
+	if err != nil {
+		panic(err)
+	}
+	indexDocs(documents, store)
+	r := store.GetFields([]string{"1", "3"}, "name")
 
 	if r["1"].Length != 4 {
 		t.Errorf("Expected 4, got %d", r["1"].Length)
@@ -339,7 +445,7 @@ func TestGetFields(t *testing.T) {
 	}
 
 	//recarrega da memoria
-	store, _ = storage.NewDiskStore("data/", 20)
+	store, _ = storage.NewDiskStore("data6/", 20)
 	r = store.GetFields([]string{"1", "3"}, "name")
 
 	if r["1"].Length != 4 {

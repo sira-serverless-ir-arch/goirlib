@@ -67,16 +67,6 @@ func BenchmarkAsyncMap(b *testing.B) {
 	})
 }
 
-func TestXyz(t *testing.T) {
-	c := cache.NewCacheRCU[int]()
-	c.Put("a", 2)
-	c.Put("b", 3)
-	c.Put("c", 4)
-	time.Sleep(5 * time.Second)
-	v, _ := c.Get("b")
-	fmt.Printf("%v\n", *v)
-}
-
 func BenchmarkRCUCacheConcurrent(b *testing.B) {
 	c := cache.NewCacheRCU[int]()
 

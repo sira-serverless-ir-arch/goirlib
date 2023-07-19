@@ -25,6 +25,9 @@ func (d *DiskIO) LoadNumberFieldTermOnHD() (map[string]map[string]int, error) {
 	numberFieldTerm := make(map[string]map[string]int)
 	for _, field := range fields {
 		path := filepath.Join(d.RootFolder, field, file.NumberFieldTerm)
+		if !file.Exists(path) {
+			continue
+		}
 		buf, err := file.ReadFileOnDisk(path)
 		if err != nil {
 			return nil, err
@@ -40,6 +43,10 @@ func (d *DiskIO) LoadFieldSizeLengthOnHD() (map[string]int, map[string]int, erro
 	fieldLength := make(map[string]int)
 	for _, field := range fields {
 		path := filepath.Join(d.RootFolder, field, file.MetricsFile)
+		if !file.Exists(path) {
+			continue
+		}
+
 		buf, err := file.ReadFileOnDisk(path)
 		if err != nil {
 			return nil, nil, err

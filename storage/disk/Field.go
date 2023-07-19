@@ -18,12 +18,12 @@ package disk
 //
 //type BufferFieldDocument struct {
 //	sync.Mutex
-//	data map[string]map[string]model.Field
+//	disk_storage map[string]map[string]model.Field
 //}
 //
 //type bufferNumberFieldTerm struct {
 //	sync.Mutex
-//	data map[string]map[string]int
+//	disk_storage map[string]map[string]int
 //}
 //
 //type bufferFieldLengthSize struct {
@@ -32,16 +32,16 @@ package disk
 //	Size   map[string]int
 //}
 //
-//func SaveDocumentFieldOnDisk(rootFolder string, data chan DocumentFieldTransferData) {
+//func SaveDocumentFieldOnDisk(rootFolder string, disk_storage chan DocumentFieldTransferData) {
 //
 //	localBuffer := BufferFieldDocument{
-//		data: make(map[string]map[string]model.Field),
+//		disk_storage: make(map[string]map[string]model.Field),
 //	}
 //
 //	go func() {
-//		for fieldDocument := range data {
+//		for fieldDocument := range disk_storage {
 //			localBuffer.Lock()
-//			localBuffer.data[fieldDocument.DocumentId] = fieldDocument.Field
+//			localBuffer.disk_storage[fieldDocument.DocumentId] = fieldDocument.Field
 //			localBuffer.Unlock()
 //		}
 //	}()
@@ -50,7 +50,7 @@ package disk
 //		for {
 //			time.Sleep(5 * time.Second)
 //			localBuffer.Lock()
-//			for documentId, fieldMap := range localBuffer.data {
+//			for documentId, fieldMap := range localBuffer.disk_storage {
 //
 //				path := filepath.Join(rootFolder, file.Documents, file.DocumentsMetrics)
 //				file.CreteDirIfNotExist(path)
@@ -62,23 +62,23 @@ package disk
 //				if err != nil {
 //					log.Fatalf(err.Error())
 //				}
-//				delete(localBuffer.data, documentId)
+//				delete(localBuffer.disk_storage, documentId)
 //			}
 //			localBuffer.Unlock()
 //		}
 //	}()
 //}
 //
-//func SaveNumberFieldTermOnDisk(rootFolder string, data chan NumberFieldTermTransferData) {
+//func SaveNumberFieldTermOnDisk(rootFolder string, disk_storage chan NumberFieldTermTransferData) {
 //
 //	buffer := bufferNumberFieldTerm{
-//		data: make(map[string]map[string]int),
+//		disk_storage: make(map[string]map[string]int),
 //	}
 //
 //	go func() {
-//		for fieldTerm := range data {
+//		for fieldTerm := range disk_storage {
 //			buffer.Lock()
-//			buffer.data[fieldTerm.FieldName] = fieldTerm.TermSize
+//			buffer.disk_storage[fieldTerm.FieldName] = fieldTerm.TermSize
 //			buffer.Unlock()
 //		}
 //	}()
@@ -87,7 +87,7 @@ package disk
 //		for {
 //			time.Sleep(5 * time.Second)
 //			buffer.Lock()
-//			for fieldName, termSize := range buffer.data {
+//			for fieldName, termSize := range buffer.disk_storage {
 //
 //				path := filepath.Join(rootFolder, fieldName)
 //				file.CreteDirIfNotExist(path)
@@ -98,14 +98,14 @@ package disk
 //				if err != nil {
 //					log.Fatalf(err.Error())
 //				}
-//				delete(buffer.data, fieldName)
+//				delete(buffer.disk_storage, fieldName)
 //			}
 //			buffer.Unlock()
 //		}
 //	}()
 //}
 //
-//func SaveFieldSizeLengthOnDisc(rootFolder string, data chan FieldSizeLengthTransferData) {
+//func SaveFieldSizeLengthOnDisc(rootFolder string, disk_storage chan FieldSizeLengthTransferData) {
 //
 //	buffer := bufferFieldLengthSize{
 //		Size:   make(map[string]int),
@@ -113,7 +113,7 @@ package disk
 //	}
 //
 //	go func() {
-//		for field := range data {
+//		for field := range disk_storage {
 //			buffer.Lock()
 //			buffer.Length[field.FieldName] = field.Length
 //			buffer.Size[field.FieldName] = field.Size
@@ -175,11 +175,11 @@ package disk
 //	return name, size, length
 //}
 //
-//func SerializeNumberFieldTerm(data map[string]int) []byte {
+//func SerializeNumberFieldTerm(disk_storage map[string]int) []byte {
 //	b := flatbuffers.NewBuilder(0)
 //
 //	var termSizes []flatbuffers.UOffsetT
-//	for term, size := range data {
+//	for term, size := range disk_storage {
 //		termKey := b.CreateString(term)
 //
 //		buffers.TermSizeStart(b)
@@ -209,24 +209,24 @@ package disk
 //	fieldTerm := buffers.GetRootAsFieldTerm(buf, 0)
 //
 //	entriesLength := fieldTerm.EntriesLength()
-//	data := make(map[string]int, entriesLength)
+//	disk_storage := make(map[string]int, entriesLength)
 //
 //	var termSize buffers.TermSize
 //	for i := 0; i < entriesLength; i++ {
 //		if fieldTerm.Entries(&termSize, i) {
-//			data[string(termSize.Key())] = int(termSize.Value())
+//			disk_storage[string(termSize.Key())] = int(termSize.Value())
 //		}
 //	}
 //
-//	return data
+//	return disk_storage
 //}
 //
-//func SerializeFieldMap(data map[string]model.Field) []byte {
+//func SerializeFieldMap(disk_storage map[string]model.Field) []byte {
 //	b := flatbuffers.NewBuilder(0)
 //
 //	var fieldEntries []flatbuffers.UOffsetT
 //
-//	for key, field := range data {
+//	for key, field := range disk_storage {
 //		keyOffset := b.CreateString(key)
 //		nameOffset := b.CreateString(field.Name)
 //
@@ -282,7 +282,7 @@ package disk
 //	var field buffers.Field
 //	var termFrequency buffers.TermFrequency
 //
-//	data := make(map[string]model.Field, root.EntriesLength())
+//	disk_storage := make(map[string]model.Field, root.EntriesLength())
 //	for i := 0; i < root.EntriesLength(); i++ {
 //		if root.Entries(&fieldMap, i) {
 //			key := string(fieldMap.Key())
@@ -299,9 +299,9 @@ package disk
 //					fieldModel.TF[tfKey] = int(termFrequency.Value())
 //				}
 //			}
-//			data[key] = fieldModel
+//			disk_storage[key] = fieldModel
 //		}
 //	}
 //
-//	return data
+//	return disk_storage
 //}

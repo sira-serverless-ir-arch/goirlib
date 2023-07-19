@@ -1,33 +1,9 @@
 package similarity
 
 import (
-	"github.com/sira-serverless-ir-arch/goirlib/cache"
 	"github.com/sira-serverless-ir-arch/goirlib/metric"
 	"github.com/sira-serverless-ir-arch/goirlib/model"
 )
-
-var lru = cache.NewShardMap[float64](10)
-
-func CalcIDF(totalDocs, numDocsWithTerm float64, term, fieldName string) float64 {
-
-	iMap, ok := lru.Get(fieldName)
-
-	if ok {
-		if idfPtr, ok := iMap.Get(term); ok {
-			return *idfPtr
-		} else {
-			idf := metric.IdfBM25(totalDocs, numDocsWithTerm)
-			iMap.Put(term, idf)
-			return idf
-		}
-	} else {
-		idf := metric.IdfBM25(totalDocs, numDocsWithTerm)
-		iMap := cache.NewAsyncMap[float64]()
-		iMap.Put(term, idf)
-		return idf
-	}
-
-}
 
 func BM25(query []string, k1, b, boost, avgDocLength, totalDocs float64, numDocsWithTerm map[string]int, field model.Field) float64 {
 	score := 0.0
@@ -35,8 +11,7 @@ func BM25(query []string, k1, b, boost, avgDocLength, totalDocs float64, numDocs
 		boost = 1
 	}
 	for _, term := range query {
-		idf := metric.IdfBM25(totalDocs, float64(numDocsWithTerm[term])) //CalcIDF(totalDocs, float64(numDocsWithTerm[term]), term, field.Name)
-		//metric.IdfBM25(totalDocs, float64(numDocsWithTerm[term]))
+		idf := metric.IdfBM25(totalDocs, float64(numDocsWithTerm[term]))
 		frequency := float64(field.TF[term])
 		numerator := frequency * (k1 + 1)
 		denominator := frequency + k1*(1-b+b*(float64(field.Length)/avgDocLength))
@@ -60,11 +35,81 @@ func BM25(query []string, k1, b, boost, avgDocLength, totalDocs float64, numDocs
 	return score
 }
 
-//D é um documento.
-//Q é a consulta de pesquisa que é um conjunto de termos {q1, q2,..., qn}.
-//f(qi, D) é a frequência do termo qi no documento D (isto é, o TF).
-//|D| é o comprimento do documento D em palavras.
-//avgdl é o comprimento médio do documento na coleção de documentos.
-//k1 e b são parâmetros livres, geralmente escolhidos, no contexto da Recuperação de Informações na Web, como k1 = 1.2 e b = 0.75.
-//IDF(qi) é o IDF (Inverse Document Frequency) do termo qi. No caso do BM25, o
-//IDF é calculado como log((Total Number Of Documents - Number Of Documents with term t in it + 0.5) / (Number Of Documents with term t in it + 0.5)).
+//var idfCache = cache.NewShardMap[float64](10)
+//var similarityCache = cache.NewShardMap[float64](10)
+//
+//func CalcSimilarity(k1, b, boost, avgDocLength, idf float64, term string, field model.Field) float64 {
+//
+//	iMap, ok := similarityCache.Get(field.Name)
+//
+//	if ok {
+//		if similarityPtr, ok := iMap.Get(term); ok {
+//			return *similarityPtr
+//		} else {
+//			frequency := float64(field.TF[term])
+//			numerator := frequency * (k1 + 1)
+//			denominator := frequency + k1*(1-b+b*(float64(field.Length)/avgDocLength))
+//			similarityPtr := boost * idf * (numerator / denominator)
+//			iMap.Put(term, similarityPtr)
+//			return similarityPtr
+//		}
+//	}
+//
+//	panic("Panico na similaridade")
+//
+//}
+//
+//func CalcIDF(totalDocs, numDocsWithTerm float64, term, fieldName string) float64 {
+//
+//	iMap, ok := idfCache.Get(fieldName)
+//
+//	if ok {
+//		if idfPtr, ok := iMap.Get(term); ok {
+//			return *idfPtr
+//		} else {
+//			idf := metric.IdfBM25(totalDocs, numDocsWithTerm)
+//			iMap.Put(term, idf)
+//			return idf
+//		}
+//	}
+//
+//	panic("Panico no IDF")
+//
+//	//else {
+//	//	idf := metric.IdfBM25(totalDocs, numDocsWithTerm)
+//	//	iMap := cache.NewCacheRCU[float64]()
+//	//	iMap.Put(term, idf)
+//	//	idfCache.Put()
+//	//	return idf
+//	//}
+//
+//}
+//
+//func BM25(query []string, k1, b, boost, avgDocLength, totalDocs float64, numDocsWithTerm map[string]int, field model.Field) float64 {
+//	score := 0.0
+//	if boost == 0 {
+//		boost = 1
+//	}
+//	for _, term := range query {
+//		idf := CalcIDF(totalDocs, float64(numDocsWithTerm[term]), term, field.Name)
+//		//metric.IdfBM25(totalDocs, float64(numDocsWithTerm[term]))
+//
+//		score += CalcSimilarity(k1, b, boost, avgDocLength, idf, term, field)
+//
+//		//if doc_id == "485" {
+//		//	//fmt.Println("*******************************")
+//		//	//fmt.Println("doc_id", doc_id)
+//		//	fmt.Println("term", term)
+//		//	//fmt.Println("totalDocs", totalDocs)
+//		//	//fmt.Println("numDocsWithTerm", numDocsWithTerm[term])
+//		//	//fmt.Println("idf", idf)
+//		//	//fmt.Println("frequency", field.TF[term])
+//		//	fmt.Println("field.Length", field.Length)
+//		//	//fmt.Println("avgDocLength", avgDocLength)
+//		//	fmt.Println("bm25", idf*(numerator/denominator))
+//		//}
+//
+//	}
+//
+//	return score
+//}
