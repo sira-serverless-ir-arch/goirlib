@@ -9,7 +9,7 @@ import (
 )
 
 //func BenchmarkAsyncMapPut(b *testing.B) {
-//	m := cache.NewAsyncMap[int]()
+//	m := cache.NewSyncMap[int]()
 //	b.ResetTimer()
 //	for i := 0; i < b.N; i++ {
 //		m.Put(strconv.Itoa(i), i)
@@ -17,7 +17,7 @@ import (
 //}
 
 //func BenchmarkAsyncMapGet(b *testing.B) {
-//	m := cache.NewAsyncMap[int]()
+//	m := cache.NewSyncMap[int]()
 //	for i := 0; i < b.N; i++ {
 //		m.Put(strconv.Itoa(i), i)
 //	}
@@ -50,7 +50,7 @@ import (
 //		}
 //	}
 func BenchmarkAsyncMap(b *testing.B) {
-	asyncMap := cache.NewAsyncMap[int]()
+	asyncMap := cache.NewSyncMap[int]()
 
 	numGoroutines := 1000
 	b.SetParallelism(numGoroutines)
@@ -86,12 +86,12 @@ func BenchmarkRCUCacheConcurrent(b *testing.B) {
 }
 
 func BenchmarkAsyncMapGet(b *testing.B) {
-	m := cache.NewAsyncMap[int]()
+	m := cache.NewSyncMap[int]()
 	for i := 0; i < 1000; i++ {
 		m.Put(fmt.Sprint(i), i)
 	}
 
-	// Wait for 5 seconds to let writer goroutine of AsyncMap do its work
+	// Wait for 5 seconds to let writer goroutine of SyncMap do its work
 	time.Sleep(5 * time.Second)
 
 	b.ResetTimer()
@@ -122,7 +122,7 @@ func BenchmarkCacheGet(b *testing.B) {
 }
 
 func BenchmarkAsyncMapPut(b *testing.B) {
-	m := cache.NewAsyncMap[int]()
+	m := cache.NewSyncMap[int]()
 
 	b.ResetTimer()
 

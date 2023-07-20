@@ -5,19 +5,31 @@ import (
 	"time"
 )
 
-type AsyncMap[T any] struct {
+//type CacheMap struct {
+//	store sync.Map
+//}
+//
+//func (c *CacheMap) Set(key string, value interface{}) {
+//	c.store.Store(key, value)
+//}
+//
+//func (c *CacheMap) Get(key string) (interface{}, bool) {
+//	return c.store.Load(key)
+//}
+
+type SyncMap[T any] struct {
 	Data map[string]T
 	Ch   chan TransferData[T]
 	sync.RWMutex
 }
 
-func NewAsyncMap[T any]() *AsyncMap[T] {
-	i := &AsyncMap[T]{
+func NewSyncMap[T any]() *SyncMap[T] {
+	i := &SyncMap[T]{
 		Data: make(map[string]T),
 		Ch:   make(chan TransferData[T], 1000),
 	}
 
-	go i.writer()
+	//go i.writer()
 	return i
 }
 
@@ -26,7 +38,7 @@ type TransferData[T any] struct {
 	Value T
 }
 
-func (i *AsyncMap[T]) writer() {
+func (i *SyncMap[T]) writer() {
 
 	m := sync.Mutex{}
 	buffer := make(map[string]T)
@@ -62,7 +74,7 @@ func (i *AsyncMap[T]) writer() {
 	}
 }
 
-func (i *AsyncMap[T]) Get(key string) (*T, bool) {
+func (i *SyncMap[T]) Get(key string) (*T, bool) {
 	i.RLock()
 	defer i.RUnlock()
 	if v, ok := i.Data[key]; ok {
@@ -71,7 +83,7 @@ func (i *AsyncMap[T]) Get(key string) (*T, bool) {
 	return nil, false
 }
 
-func (i *AsyncMap[T]) Put(key string, value T) {
+func (i *SyncMap[T]) Put(key string, value T) {
 	i.Ch <- TransferData[T]{
 		Key:   key,
 		Value: value,

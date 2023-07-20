@@ -49,7 +49,7 @@ func isNotDocumentComplete(doc Document) bool {
 var id = 0
 
 func maincc() {
-	lru := cache.NewAsyncMap[float64]()
+	lru := cache.NewSyncMap[float64]()
 
 	go func() {
 		for i := 0; i < 1000; i++ {

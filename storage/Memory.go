@@ -13,8 +13,26 @@ type Memory struct {
 }
 
 func (m *Memory) UpdateIndex(documentId string, field model.Field) {
-	//TODO implement me
-	panic("implement me")
+	m.FieldSize[field.Name] += 1
+	m.FieldLength[field.Name] += field.Length
+
+	indexField := m.Index[field.Name]
+
+	if indexField == nil {
+		indexField = make(map[string]*model.Set)
+		m.Index[field.Name] = indexField
+	}
+
+	for key := range field.TF {
+		set := indexField[key]
+		if set == nil {
+			set = model.NewSet()
+			set.Add(documentId)
+			indexField[key] = set
+		} else {
+			set.Add(documentId)
+		}
+	}
 }
 
 func NewMemory() Storage {
@@ -78,26 +96,7 @@ func (m *Memory) GetFields(documentId []string, fieldName string) map[string]mod
 func (m *Memory) SaveOrUpdate(documentId string, field model.Field) {
 	m.createFieldDocument(documentId, field)
 
-	m.FieldSize[field.Name] += 1
-	m.FieldLength[field.Name] += field.Length
-
-	indexField := m.Index[field.Name]
-
-	if indexField == nil {
-		indexField = make(map[string]*model.Set)
-		m.Index[field.Name] = indexField
-	}
-
-	for key := range field.TF {
-		set := indexField[key]
-		if set == nil {
-			set = model.NewSet()
-			set.Add(documentId)
-			indexField[key] = set
-		} else {
-			set.Add(documentId)
-		}
-	}
+	m.UpdateIndex(documentId, field)
 
 	//numérico de campos que possui o termo
 	fieldTerm := m.NumberFieldTerm[field.Name]

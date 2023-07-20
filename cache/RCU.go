@@ -19,11 +19,6 @@ func NewCacheRCU[T any]() *RCU[T] {
 	return c
 }
 
-//type TransferData[T any] struct {
-//	Key   string
-//	Value T
-//}
-
 func (c *RCU[T]) Get(key string) (*T, bool) {
 	data := c.data.Load().(map[string]T)
 	value, ok := data[key]

@@ -7,17 +7,17 @@ import (
 
 type Shard[T any] struct {
 	Fragments int
-	Shard     map[int]*RCU[T]
+	Shard     map[int]*LocalMap[T]
 }
 
 func NewShardMap[T any](fragments int) *Shard[T] {
 	shardMap := &Shard[T]{
 		Fragments: fragments,
-		Shard:     make(map[int]*RCU[T]),
+		Shard:     make(map[int]*LocalMap[T]),
 	}
 
 	for i := 0; i < fragments; i++ {
-		shardMap.Shard[i] = NewCacheRCU[T]()
+		shardMap.Shard[i] = NewLocalMap[T]()
 	}
 
 	return shardMap
@@ -28,7 +28,7 @@ func NewShardMap[T any](fragments int) *Shard[T] {
 //	m.Shard[shardId] = value
 //}
 
-func (m *Shard[T]) Get(key string) (*RCU[T], bool) {
+func (m *Shard[T]) Get(key string) (*LocalMap[T], bool) {
 	shardId := m.getShardId(key)
 	if iMap, ok := m.Shard[shardId]; ok {
 		return iMap, ok
